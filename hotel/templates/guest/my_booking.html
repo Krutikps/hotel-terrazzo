@@ -1,0 +1,8 @@
+{% extends "guest/base.html" %}{% block title %}My booking · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Manage</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Find my booking</h1><p>Enter your booking number and the email address or phone number used for the booking.</p></div></div>
+<section class="section"><div class="wrap" style="max-width:520px" x-data="{ref:'{{ ref|escapejs }}', contact:'', err:'', busy:false, async go(){ this.err=''; this.busy=true; var r = await api('/api/my-booking/lookup/', {booking_number:this.ref, contact:this.contact}); this.busy=false; if(!r.ok){ this.err=r.error.message; return; } location.href=r.data.url; }}">
+  <form class="card" @submit.prevent="go()"><div class="body"><div class="alert bad" x-show="err" x-text="err"></div>
+    <div class="field"><label>Booking number</label><input class="input" x-model="ref" placeholder="{{ hotel.booking_prefix }}-{% now 'Y' %}-000123" required></div>
+    <div class="field"><label>Email or phone</label><input class="input" x-model="contact" required></div><button class="btn primary block" :disabled="busy">Find booking</button></div></form></div></section>
+{% endblock %}

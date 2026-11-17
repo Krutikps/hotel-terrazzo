@@ -1,0 +1,8 @@
+{% extends "staff/base.html" %}{% block title %}{{ c.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ c.title }}</h1>{% if c.hint %}<p>{{ c.hint }}</p>{% endif %}</div>{% if can_edit %}<a class="btn primary" href="{% url 'staff:crud_new' slug %}">+ Add</a>{% endif %}</div>
+{% if slug == 'rateplans' or slug == 'pricingrules' %}<div class="tabs"><a class="{% if slug == 'rateplans' %}on{% endif %}" href="{% url 'staff:crud_list' 'rateplans' %}">Rate plans</a><a class="{% if slug == 'pricingrules' %}on{% endif %}" href="{% url 'staff:crud_list' 'pricingrules' %}">Pricing rules</a><a href="{% url 'staff:pricing' %}">Pricing calendar</a></div>{% endif %}
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}<th></th></tr></thead><tbody>
+{% for r in rows %}<tr {% if can_edit %}class="clickable" data-href="{% url 'staff:crud_edit' slug r.pk %}"{% endif %}>{% for cell in r.cells %}<td data-label="{{ cell.h }}">{{ cell.v }}</td>{% endfor %}<td>{% if can_edit %}<a class="btn sm" href="{% url 'staff:crud_edit' slug r.pk %}">Edit</a>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="{{ headers|length|add:1 }}" class="empty">Nothing here yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

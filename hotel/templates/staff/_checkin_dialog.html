@@ -1,0 +1,11 @@
+{% load hms %}<dialog id="dCheckin"><form method="post" data-f="action" action="{% if res %}{% url 'staff:res_checkin' res.pk %}{% endif %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <div class="dh">Check in — <span data-f="guest">{{ res.guest.name }}</span> <button type="button" data-close>×</button></div><div class="db">
+  <p class="small muted">1 · Verify the booking &nbsp; 2 · Verify identity &nbsp; 3 · Confirm room &nbsp; 4 · Collect payment &nbsp; 5 · Check in</p>
+  <div class="grid g2"><div class="field"><label class="f">ID type</label><select class="input" name="id_type" data-f="id_type"><option value="">Select…</option>{% for t in "Aadhaar|Passport|Driving licence|Voter ID|Other"|split:"|" %}<option {% if res.guest.id_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div class="field"><label class="f">ID number</label><input class="input" name="id_number" data-f="id_number" value="{{ res.guest.id_number }}" required></div></div>
+  <p>Room(s): <b data-f="rooms">{{ res.assigned_room_numbers|default:"will be auto-assigned from ready rooms" }}</b></p>
+  <div class="grid g2"><div class="field"><label class="f">Collect payment (balance <b data-f="balance_txt">{{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }}</b>)</label><input class="input" type="number" step="0.01" min="0" name="collect" data-f="collect" value="0"></div>
+  <div class="field"><label class="f">Method</label><select class="input" name="method"><option value="CASH">Cash</option><option value="CARD">Card</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="OTHER">Other</option></select></div></div>
+  <div class="field"><label class="f">Payment reference / deposit note</label><input class="input" name="reference"></div>
+  <div class="field"><label class="f">Notes</label><textarea class="input" name="notes" placeholder="Key cards issued, deposit taken, preferences…"></textarea></div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Check in guest</button></div></form></dialog>

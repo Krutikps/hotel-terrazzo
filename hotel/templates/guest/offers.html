@@ -1,0 +1,6 @@
+{% extends "guest/base.html" %}{% block title %}Offers · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Offers</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Book direct & save</h1><p>Enter the code at checkout. Offers are validated against your dates and room.</p></div></div>
+<section class="section"><div class="wrap"><div class="grid g3">{% for o in offers %}<div class="offer"><h3 style="color:#fff">{{ o.title }}</h3><p style="opacity:.85">{{ o.description }}</p><span class="code">{{ o.code }}</span><p class="small" style="opacity:.7;margin-bottom:0">{% if o.min_nights > 1 %}Min {{ o.min_nights }} nights. {% endif %}{% if o.valid_to %}Valid until {{ o.valid_to|date:"j M Y" }}.{% endif %}</p></div>{% empty %}<p>No offers right now — check back soon.</p>{% endfor %}</div>
+  <div style="margin-top:28px">{% include "guest/_search.html" %}</div></div></section>
+{% endblock %}

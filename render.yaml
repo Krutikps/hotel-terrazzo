@@ -1,0 +1,42 @@
+# Render Blueprint: one free web service. The database is a free Neon Postgres (paste its URL as DATABASE_URL).
+# Dashboard -> New -> Blueprint -> pick this repo. Render asks for the values marked "sync: false".
+services:
+  - type: web
+    name: terrazzo
+    runtime: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn hms.wsgi:application --workers 1 --threads 8 --timeout 60 --access-logfile -
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: DATABASE_URL            # Neon connection string, e.g. postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require
+        sync: false
+      - key: ADMIN_EMAIL             # your own staff login
+        sync: false
+      - key: ADMIN_PASSWORD          # choose a strong password; also used for the demo staff accounts when SEED_DEMO=true
+        sync: false
+      - key: SEED_DEMO               # true = load demo rooms/rates/bookings on the first deploy (only when the database is empty)
+        value: "true"
+      # Payments. Demo: built-in sandbox gateway (no real money moves, the pay page says so).
+      # Real: set PAYMENT_PROVIDER=razorpay, ALLOW_MOCK_PAYMENTS=false and add the three RAZORPAY_* keys.
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: ALLOW_MOCK_PAYMENTS
+        value: "true"
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      # Optional email (Gmail/Brevo/Resend SMTP). Without it, emails are only logged.
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend

@@ -1,0 +1,14 @@
+{% extends "staff/base.html" %}{% block title %}{{ inst.name|default:"New room type" }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ inst.name|default:"New room type" }}</h1></div><a class="btn" href="{% url 'staff:roomtypes' %}">← Room types</a></div>
+<div class="cols-2-1"><form method="post" class="card">{% csrf_token %}{{ form.non_field_errors }}
+  <div class="form-grid">{% for f in form %}{% if f.name != 'amenities' and f.name != 'description' %}{% include "staff/_field.html" %}{% endif %}{% endfor %}</div>
+  <div class="field"><label class="f">Description</label>{{ form.description }}{{ form.description.errors }}</div>
+  <div class="field"><label class="f">Amenities</label><div class="chk-list">{{ form.amenities }}</div></div><button class="btn primary">Save room type</button></form>
+<div>{% if inst %}<div class="card"><h2>Photos</h2>
+  {% for i in images %}<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><img src="{{ i.src }}" alt="" style="width:84px;height:56px;object-fit:cover;border-radius:6px"><div style="flex:1"><div class="small">{{ i.caption|default:"(no caption)" }}</div>{% if i.is_primary %}<span class="badge b-ok">Primary</span>{% endif %}</div>
+    <form method="post" action="{% url 'staff:roomtype_image_action' inst.pk i.pk %}" class="btn-row">{% csrf_token %}{% if not i.is_primary %}<button class="btn sm" name="action" value="primary">Primary</button>{% endif %}<button class="btn sm danger" name="action" value="delete" onclick="return confirm('Remove this photo?')">×</button></form></div>{% empty %}<div class="empty">No photos yet.</div>{% endfor %}
+  <form method="post" action="{% url 'staff:roomtype_image_add' inst.pk %}" enctype="multipart/form-data" style="margin-top:12px">{% csrf_token %}<div class="field"><label class="f">Upload photo (JPG/PNG/WebP, max 8MB)</label><input class="input" type="file" name="image" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label class="f">…or image URL</label><input class="input" name="image_url" placeholder="https://…"></div><div class="field"><label class="f">Caption</label><input class="input" name="caption" placeholder="Bedroom, Bathroom, Balcony…"></div><button class="btn">Add photo</button></form></div>
+  <div class="card"><h2>Rooms of this type</h2>{% for r in rooms %}<span class="badge b-{{ r.status }}" style="margin:2px">{{ r.room_number }}</span>{% empty %}<span class="muted">None yet — add rooms under Rooms.</span>{% endfor %}</div>{% endif %}</div></div>
+{% endblock %}

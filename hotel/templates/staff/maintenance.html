@@ -1,0 +1,17 @@
+{% extends "staff/base.html" %}{% block title %}Maintenance{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Maintenance</h1><p>Rooms with a blocking ticket cannot be booked until the ticket is resolved.</p></div><button class="btn primary" data-open="dTicket">+ Report issue</button></div>
+<div class="tabs"><a class="{% if st == 'open' %}on{% endif %}" href="?status=open">Open</a><a class="{% if st == 'done' %}on{% endif %}" href="?status=done">Resolved</a><a class="{% if st == 'all' %}on{% endif %}" href="?status=all">All</a></div>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>#</th><th>Room</th><th>Problem</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Created</th><th>Resolved</th>{% if can_manage %}<th>Update</th>{% endif %}</tr></thead><tbody>
+{% for t in tickets %}<tr><td data-label="#">{{ t.pk }}</td><td data-label="Room"><b>{{ t.room.room_number }}</b>{% if t.blocks_room and t.is_open %} <span class="badge b-MAINTENANCE">out of sale</span>{% endif %}</td><td data-label="Problem">{{ t.problem }}{% if t.notes %}<div class="small muted">{{ t.notes }}</div>{% endif %}</td>
+<td data-label="Priority"><span class="badge b-{{ t.priority }}">{{ t.get_priority_display }}</span></td><td data-label="Status"><span class="badge b-{{ t.status }}">{{ t.get_status_display }}</span></td><td data-label="Assigned">{{ t.assigned_to.name|default:"—" }}</td>
+<td data-label="Created">{{ t.created_at|date:"j M H:i" }}<div class="small muted">{{ t.reported_by.name }}</div></td><td data-label="Resolved">{{ t.resolved_at|date:"j M H:i"|default:"—" }}</td>
+{% if can_manage %}<td><form method="post" action="{% url 'staff:ticket_update' t.pk %}" class="inline-form">{% csrf_token %}<select class="input" name="status" style="width:auto;padding:3px">{% for k, v in statuses %}<option value="{{ k }}" {% if t.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+<select class="input" name="assigned_to" style="width:auto;padding:3px"><option value="">Unassigned</option>{% for u in staff_users %}<option value="{{ u.pk }}" {% if t.assigned_to_id == u.pk %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select><button class="btn sm">Save</button></form></td>{% endif %}</tr>
+{% empty %}<tr><td colspan="9" class="empty">No tickets.</td></tr>{% endfor %}</tbody></table></div></div>
+<dialog id="dTicket"><form method="post" action="{% url 'staff:ticket_new' %}">{% csrf_token %}<div class="dh">Report maintenance issue <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Room</label>{{ form.room }}</div><div class="field"><label class="f">Problem</label>{{ form.problem }}</div>
+  <div class="grid g2"><div class="field"><label class="f">Priority</label>{{ form.priority }}</div><div class="field"><label class="f">Assign to</label>{{ form.assigned_to }}</div></div>
+  <div class="field"><label class="f">Notes</label>{{ form.notes }}</div><label><input type="checkbox" class="chk" name="blocks_room" checked> Take the room out of sale while open</label></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Create ticket</button></div></form></dialog>
+{% endblock %}

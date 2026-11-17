@@ -1,0 +1,11 @@
+{% extends "staff/base.html" %}{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Reports</h1><p>All figures are computed live from the database.</p></div>
+  <div class="btn-row"><a class="btn" href="?report={{ key }}&{{ qs }}&export=csv">CSV</a><a class="btn" href="?report={{ key }}&{{ qs }}&export=xlsx">Excel</a><a class="btn" href="?report={{ key }}&{{ qs }}&export=pdf">PDF</a></div></div>
+<form class="filters" method="get"><div style="min-width:220px"><label class="f">Report</label><select class="input" name="report" onchange="this.form.submit()">{% for k, l in reports %}<option value="{{ k }}" {% if k == key %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div><label class="f">From</label><input class="input" type="date" name="from" value="{{ start|date:'Y-m-d' }}"></div><div><label class="f">To</label><input class="input" type="date" name="to" value="{{ end|date:'Y-m-d' }}"></div>
+  <div><label class="f">Room type</label><select class="input" name="room_type"><option value="">All</option>{% for t in room_types %}<option value="{{ t.id }}" {% if rt == t.id|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div><div><button class="btn primary">Run</button></div></form>
+<div class="grid g4" style="margin-bottom:16px">{% for k, v in rep.summary.items %}<div class="stat"><div class="l">{{ k }}</div><div class="v" style="font-size:20px">{{ v }}</div></div>{% endfor %}</div>
+<div class="card" style="padding:0"><div class="card-h" style="padding:12px 16px"><h2>{{ rep.title }}</h2><span class="muted small">{{ rep.rows|length }} rows · {{ start|date:"j M Y" }} → {{ end|date:"j M Y" }}</span></div>
+<div class="tbl-wrap" style="max-height:65vh"><table class="tbl"><thead><tr>{% for c in rep.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for r in rep.rows %}<tr>{% for c in r %}<td>{{ c }}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="{{ rep.columns|length }}" class="empty">No data for this period.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

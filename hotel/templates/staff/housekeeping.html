@@ -1,0 +1,14 @@
+{% extends "staff/base.html" %}{% block title %}Housekeeping{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Housekeeping</h1><p>Update room status as work progresses — reception sees it immediately.</p></div></div>
+<div class="kanban">
+{% for status, rooms in cols.items %}<div class="kcol"><h3>{{ status|title }} <span class="badge b-{{ status }}">{{ rooms|length }}</span></h3>
+  {% for r in rooms %}<div class="kcard"><div class="top2"><span>{{ r.room_number }}</span>{% if r.id in arriving %}<span class="badge b-warn">Arrival today</span>{% endif %}</div><div class="small muted">{{ r.room_type.name }} · floor {{ r.floor }}</div>
+    <form method="post" action="{% url 'staff:room_status' r.pk %}" class="btn-row" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="next" value="{% url 'staff:housekeeping' %}">
+      {% if status == 'DIRTY' %}<button class="btn sm primary" name="status" value="CLEANING">Start cleaning</button>{% elif status == 'CLEANING' %}<button class="btn sm primary" name="status" value="CLEAN">Mark clean</button>{% elif status == 'CLEAN' %}<button class="btn sm primary" name="status" value="INSPECTED">Inspected ✓</button><button class="btn sm" name="status" value="DIRTY">Dirty</button>{% else %}<button class="btn sm" name="status" value="DIRTY">Mark dirty</button>{% endif %}</form></div>
+  {% empty %}<div class="empty small">None</div>{% endfor %}</div>{% endfor %}</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Occupied / out of service</h2>{% for r in other %}<span class="badge b-{{ r.status }}" style="margin:2px">{{ r.room_number }} · {{ r.get_status_display }}</span>{% empty %}<div class="muted">None</div>{% endfor %}</div>
+  <div class="card"><h2>Recent changes</h2>{% for l in logs %}<div class="small" style="padding:3px 0;border-bottom:1px solid var(--line)"><b>{{ l.room.room_number }}</b> {{ l.from_status|title }} → {{ l.to_status|title }} <span class="muted">· {{ l.user.name|default:"System" }} · {{ l.created_at|timesince }} ago</span></div>{% endfor %}</div></div>
+{% endblock %}
+{% block scripts %}<script>window.__autoRefresh = function () { location.reload(); };</script>{% endblock %}

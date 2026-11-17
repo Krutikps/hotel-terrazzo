@@ -1,0 +1,13 @@
+{% extends "staff/base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ title }}</h1>{% if hint %}<p>{{ hint }}</p>{% endif %}</div><a class="btn" href="{{ back }}">← Back</a></div>
+<form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="toast error" style="margin-bottom:12px">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">{% for f in form %}<div class="field" {% if f.field.widget.input_type == 'checkboxselectmultiple' or f.field.widget.input_type == 'select' and f.field.widget.allow_multiple_selected or f.name == 'description' or f.name == 'notes' %}style="grid-column:1/-1"{% endif %}>
+    {% if f.field.widget.input_type == 'checkbox' %}<label><input type="checkbox" class="chk" name="{{ f.html_name }}" {% if f.value %}checked{% endif %}> <b>{{ f.label }}</b></label>
+    {% else %}<label class="f" for="{{ f.id_for_label }}">{{ f.label }}</label>{% if f.field.widget.input_type == 'checkboxselectmultiple' or f.field.widget.allow_multiple_selected %}<div class="chk-list">{{ f }}</div>{% else %}{{ f }}{% endif %}{% endif %}
+    {% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}{{ f.errors }}</div>{% endfor %}</div>
+  <div class="btn-row" style="margin-top:8px"><button class="btn primary">Save</button><a class="btn" href="{{ back }}">Cancel</a></div>
+</form>
+{% if delete_url %}<form method="post" action="{{ delete_url }}" data-confirm="Delete this item permanently?">{% csrf_token %}<button class="btn danger">Delete</button></form>{% endif %}
+{% endblock %}

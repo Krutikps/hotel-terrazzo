@@ -1,0 +1,19 @@
+{% extends "guest/base.html" %}{% block title %}{{ rt.name }} · {{ hotel.name }}{% endblock %}{% block desc %}{{ rt.short_description }}{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:28px"><div class="wrap">
+  <p class="small"><a href="{% url 'guest:rooms' %}">← All rooms</a></p>
+  <div class="gallery">{% for i in rt.images.all|slice:":5" %}<img src="{{ i.src }}" alt="{{ i.caption|default:rt.name }}" data-zoom="{{ i.src }}" class="{% if forloop.first %}big{% endif %}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}">{% endfor %}</div>
+  <div class="grid" style="grid-template-columns:1fr;margin-top:28px"><div class="co">
+    <div><span class="eyebrow">{{ rt.short_description }}</span><h1 style="font-size:clamp(2rem,5vw,3rem)">{{ rt.name }}</h1>
+      <div class="tags"><span class="tag">📐 {{ rt.size_sqft }} sq ft</span><span class="tag">🛏 {{ rt.bed_type }}</span><span class="tag">👥 Up to {{ rt.max_occupancy }} guests ({{ rt.max_adults }} adults, {{ rt.max_children }} children)</span></div>
+      <p>{{ rt.description }}</p>
+      <h3>Room amenities</h3><div class="tags">{% for a in rt.amenities.all %}<span class="tag">{{ a.icon }} {{ a.name }}</span>{% endfor %}</div>
+      <h3 style="margin-top:22px">Rate plans</h3>{% for p in plans %}<div class="plan"><div><b>{{ p.name }}</b> <span class="tag {% if p.refundable %}ok{% else %}warn{% endif %}">{{ p.get_meal_plan_display }}</span><div class="muted small">{{ p.description }}</div><div class="small">{{ p.cancellation_text }}</div></div></div>{% endfor %}
+      <p class="muted small">Final prices depend on your dates and guests — check availability for an exact quote.</p></div>
+    <aside class="sticky card"><div class="body"><div class="price"><small>from</small> {{ hotel.currency_symbol }}{{ rt.from_price|floatformat:"0g" }}<small> / night</small></div><p class="small muted">Taxes extra. Prices vary by date and rate plan.</p>
+      <form method="get" action="{% url 'guest:availability' %}" style="display:grid;gap:10px"><input type="hidden" name="room" value="{{ rt.id }}">
+        <div><label class="lbl">Check-in</label><input class="input" type="date" name="check_in" value="{{ search.check_in }}" required></div><div><label class="lbl">Check-out</label><input class="input" type="date" name="check_out" value="{{ search.check_out }}" required></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div><label class="lbl">Adults</label><input class="input" type="number" min="1" max="{{ rt.max_adults }}" name="adults" value="{{ search.adults }}"></div><div><label class="lbl">Children</label><input class="input" type="number" min="0" max="{{ rt.max_children }}" name="children" value="{{ search.children }}"></div><div><label class="lbl">Rooms</label><input class="input" type="number" min="1" max="5" name="rooms" value="{{ search.rooms }}"></div></div>
+        <button class="btn primary block">Check availability</button></form></div></aside></div></div>
+  <h2 style="margin-top:50px">You may also like</h2><div class="grid g3">{% for t in others %}{% include "guest/_room_card.html" %}{% endfor %}</div></div></section>
+{% endblock %}

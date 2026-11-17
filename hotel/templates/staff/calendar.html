@@ -1,0 +1,81 @@
+{% extends "staff/base.html" %}{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Availability calendar</h1><p>Rooms × dates. {% if can_edit %}Drag a booking onto another room of the same type to change its room; drag an unassigned booking onto a room to assign it.{% endif %}</p></div>
+  <div class="btn-row"><button class="btn" id="prev">← 1 week</button><button class="btn" id="today">Today</button><button class="btn" id="next">1 week →</button><select class="input" id="span" style="width:auto"><option value="14">14 days</option><option value="21">21 days</option><option value="30">30 days</option></select></div></div>
+<div class="card legend" style="padding:10px 14px"><span style="--c:#2f7d5b">Confirmed</span><span style="--c:#c28a1c">Pending payment</span><span style="--c:#2c6a9a">Checked in</span><span style="--c:#8a8f93">Checked out</span><span style="--c:#6b4fa3">Blocked</span><span style="--c:#b3372f">Maintenance / out of order</span></div>
+<div id="unassigned" class="unassigned"></div>
+<div class="cal-wrap"><table class="cal" id="cal"></table></div>
+<p class="small muted">Click a booking to open it{% if can_block %} · click a room number to block it{% endif %} · click an empty cell to start a new booking for that date.</p>
+{% include "staff/_block_dialog.html" %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var CAN_EDIT = {{ can_edit|yesno:"true,false" }}, CAN_BLOCK = {{ can_block|yesno:"true,false" }};
+  var start = new Date('{{ start|date:"Y-m-d" }}T00:00:00'), days = 14, data = null, W = 64;
+  var iso = function (d) { var m = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd; };
+  var parse = function (s) { return new Date(s + 'T00:00:00'); };
+  var dayDiff = function (a, b) { return Math.round((b - a) / 86400000); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var dragging = null;
+
+  async function load() {
+    var r = await api('/api/staff/calendar/?start=' + iso(start) + '&days=' + days);
+    if (!r.ok) { toast(r.error.message, 'error'); return; } data = r.data; render();
+  }
+  function render() {
+    var t = document.getElementById('cal'), ds = []; for (var i = 0; i < days; i++) { var d = new Date(start); d.setDate(d.getDate() + i); ds.push(d); }
+    var todayIso = iso(new Date()), html = '<thead><tr><th class="rh">Room</th>';
+    ds.forEach(function (d) { var we = d.getDay() === 0 || d.getDay() === 6; html += '<th class="' + (we ? 'we ' : '') + (iso(d) === todayIso ? 'today' : '') + '">' + d.toLocaleDateString('en-GB', { weekday: 'short' }) + '<br>' + d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }) + '</th>'; });
+    html += '</tr></thead><tbody>';
+    var lastType = null;
+    data.rooms.forEach(function (room) {
+      if (room.type !== lastType) { lastType = room.type; var avail = ''; html += '<tr class="tr"><td colspan="' + (days + 1) + '">' + esc(room.type_name) + '</td></tr>'; }
+      html += '<tr data-room="' + room.id + '"><th class="rh" ' + (CAN_BLOCK ? 'data-block="' + room.id + '" style="cursor:pointer"' : '') + '>' + esc(room.number) + ' <span class="small muted">F' + room.floor + '</span></th>';
+      ds.forEach(function (d, i) { var we = d.getDay() === 0 || d.getDay() === 6; html += '<td class="' + (we ? 'we' : '') + '" data-room="' + room.id + '" data-type="' + room.type + '" data-date="' + iso(d) + '">' + (i === 0 ? '<div class="cellhost" data-host="' + room.id + '"></div>' : '') + '</td>'; });
+      html += '</tr>';
+    });
+    t.innerHTML = html + '</tbody>';
+    // bars
+    function place(roomId, s, e, cls, label, tip, extra) {
+      var td0 = t.querySelector('tr[data-room="' + roomId + '"] td[data-date]'); if (!td0) return;
+      var a = parse(s), b = parse(e), cs = Math.max(0, dayDiff(start, a)), ce = Math.min(days, dayDiff(start, b)); if (ce <= cs) return;
+      var cell = t.querySelector('tr[data-room="' + roomId + '"] td[data-date="' + iso(new Date(start.getTime() + cs * 86400000)) + '"]'); if (!cell) return;
+      var el = document.createElement('div'); el.className = 'bar ' + cls; el.textContent = label; el.title = tip || label;
+      var startsBefore = dayDiff(start, a) < 0, half = (cs === dayDiff(start, a)) ? W / 2 : 0;  // reservations occupy from midday to midday
+      el.style.left = (startsBefore ? 0 : half) + 'px'; el.style.width = ((ce - cs) * W - (startsBefore ? 0 : half) - (dayDiff(start, b) <= days ? W / 2 : 0) - 2) + 'px';
+      if (extra) Object.keys(extra).forEach(function (k) { el.dataset[k] = extra[k]; });
+      cell.appendChild(el); return el;
+    }
+    data.items.forEach(function (it) {
+      var el = place(it.room, it.start, it.end, it.status, it.guest + ' · ' + it.ref, it.tip, { rr: it.rr, res: it.res, type: it.type, status: it.status });
+      if (!el) return; el.addEventListener('click', function () { location.href = '/staff/reservations/' + it.res + '/'; });
+      if (CAN_EDIT && (it.status === 'CONFIRMED' || it.status === 'CHECKED_IN')) { el.draggable = true; bindDrag(el, it); }
+    });
+    data.blocks.forEach(function (b) { place(b.room, b.start, b.end, 'block', 'Blocked · ' + b.reason, 'Blocked: ' + b.reason + (b.notes ? ' — ' + b.notes : '')); });
+    data.rooms.forEach(function (r) { if (r.out) place(r.id, iso(start), iso(new Date(start.getTime() + days * 86400000)), 'maint', 'Out of service (' + r.status.replace('_', ' ').toLowerCase() + ')'); });
+    var un = document.getElementById('unassigned'); un.innerHTML = '';
+    if (data.unassigned.length) { un.innerHTML = '<span class="small muted" style="align-self:center">Unassigned:</span>'; }
+    data.unassigned.forEach(function (it) { var c = document.createElement('span'); c.className = 'chip'; c.textContent = it.ref + ' · ' + it.guest + ' · ' + it.start.slice(5) + '→' + it.end.slice(5); c.title = it.tip; if (CAN_EDIT) { c.draggable = true; bindDrag(c, it); } c.onclick = function () { location.href = '/staff/reservations/' + it.res + '/'; }; un.appendChild(c); });
+    // drop targets
+    t.querySelectorAll('td[data-room]').forEach(function (td) {
+      td.addEventListener('dragover', function (e) { if (!dragging) return; var ok = String(dragging.type) === td.dataset.type; if (ok) { e.preventDefault(); td.classList.add('drop'); } else td.classList.add('drop-bad'); });
+      td.addEventListener('dragleave', function () { td.classList.remove('drop', 'drop-bad'); });
+      td.addEventListener('drop', async function (e) { e.preventDefault(); td.classList.remove('drop', 'drop-bad'); if (!dragging) return; var d = dragging; dragging = null;
+        var r = await api('/api/staff/reservations/' + d.res + '/move/', { body: { rr: d.rr, room: parseInt(td.dataset.room) } });
+        if (r.ok) { toast('Room updated.', 'success'); } else { toast(r.error.message, 'error'); } load(); });
+      td.addEventListener('click', function (e) { if (e.target === td && CAN_EDIT) { location.href = '/staff/reservations/new/?check_in=' + td.dataset.date; } });
+    });
+    t.querySelectorAll('[data-block]').forEach(function (h) { h.onclick = function () { var dlg = document.getElementById('dBlock'); var sel = dlg.querySelector('select[name=room]'); if (sel) sel.value = h.dataset.block; dlg.showModal(); }; });
+  }
+  function bindDrag(el, it) { el.addEventListener('dragstart', function (e) { dragging = it; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.ref); }); el.addEventListener('dragend', function () { el.classList.remove('dragging'); document.querySelectorAll('.drop,.drop-bad').forEach(function (x) { x.classList.remove('drop', 'drop-bad'); }); }); }
+  document.getElementById('prev').onclick = function () { start.setDate(start.getDate() - 7); load(); };
+  document.getElementById('next').onclick = function () { start.setDate(start.getDate() + 7); load(); };
+  document.getElementById('today').onclick = function () { start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 1); load(); };
+  document.getElementById('span').onchange = function (e) { days = parseInt(e.target.value); load(); };
+  window.__autoRefresh = function () { if (!dragging && !document.querySelector('dialog[open]')) load(); };
+  load();
+})();
+</script>
+<style>.cellhost{position:absolute;left:0;top:0}.cal td{overflow:visible}</style>
+{% endblock %}

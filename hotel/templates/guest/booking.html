@@ -1,0 +1,19 @@
+{% extends "guest/base.html" %}{% block title %}Booking {{ res.reference }} · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">My booking</span><h1 style="font-size:clamp(2rem,5vw,3rem)">{{ res.reference }}</h1></div></div>
+<section class="section" style="padding-top:28px"><div class="wrap" style="max-width:860px" x-data="cancel()">
+  {% if res.status == 'CANCELLED' %}<div class="alert bad">This booking was cancelled{% if res.cancelled_at %} on {{ res.cancelled_at|date:"j M Y" }}{% endif %}.</div>{% endif %}
+  <div class="card"><div class="body"><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="tag {% if res.status == 'CONFIRMED' or res.status == 'CHECKED_IN' %}ok{% else %}warn{% endif %}">{{ res.get_status_display }}</span><span class="tag {% if res.payment_status == 'PAID' %}ok{% else %}warn{% endif %}">Payment: {{ res.get_payment_status_display }}</span></div>
+    <div class="grid g2" style="margin-top:14px"><div><div class="lbl">Guest</div><b>{{ res.guest.name }}</b></div><div><div class="lbl">Room</div><b>{{ res.room_type.name }}</b> · {{ res.rate_plan.name }}</div><div><div class="lbl">Stay</div>{{ res.check_in|date:"D j M Y" }} → {{ res.check_out|date:"D j M Y" }} ({{ res.nights }} night{{ res.nights|pluralize }})</div><div><div class="lbl">Guests</div>{{ res.adults }} adult{{ res.adults|pluralize }}, {{ res.children }} child{{ res.children|pluralize:"ren" }}</div></div>
+    <h3 style="margin-top:20px">Charges</h3>{% for l in lines %}<div class="line"><span>{{ l.description }}</span><span>{{ hotel.currency_symbol }}{{ l.amount|floatformat:2 }}</span></div>{% endfor %}<div class="line total"><span>Total</span><span>{{ hotel.currency_symbol }}{{ res.total|floatformat:2 }}</span></div><div class="line"><span>Paid</span><span>{{ hotel.currency_symbol }}{{ res.amount_paid|floatformat:2 }}</span></div><div class="line"><span>Balance</span><span>{{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }}</span></div>
+    {% for p in payments %}<div class="small muted">Payment {{ p.created_at|date:"j M Y" }} · {{ p.get_method_display }} · {{ hotel.currency_symbol }}{{ p.amount|floatformat:2 }} · {{ p.transaction_id|default:p.provider_payment_id }}</div>{% endfor %}
+    <h3 style="margin-top:20px">Cancellation policy</h3><p class="muted">{{ res.cancellation_policy }}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="{% url 'guest:confirmation_pdf' res.access_token %}" target="_blank">Download confirmation</a><a class="btn" href="{% url 'guest:confirmation' res.access_token %}">View / print</a>{% if can_cancel %}<button class="btn" style="border-color:var(--bad);color:var(--bad)" @click="open()">Cancel booking</button>{% endif %}</div>
+    {% if can_cancel %}<div x-show="show" class="alert" style="margin-top:16px"><div class="alert bad" x-show="err" x-text="err"></div><p>If you cancel now: cancellation charge <b x-text="fee"></b>, refund <b x-text="refund"></b>. This cannot be undone.</p><button class="btn primary" @click="confirm()" :disabled="busy">Yes, cancel my booking</button> <button class="btn" @click="show=false">Keep booking</button></div>{% endif %}</div></div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script>
+function cancel() { return { show: false, busy: false, err: '', fee: '…', refund: '…',
+  open: async function () { this.show = true; var r = await api('/api/reservations/{{ res.access_token }}/cancel/', { preview: true }); if (r.ok) { this.fee = money2(r.data.fee); this.refund = money2(r.data.refund); } },
+  confirm: async function () { this.busy = true; var r = await api('/api/reservations/{{ res.access_token }}/cancel/', { reason: 'Cancelled by guest' }); this.busy = false; if (!r.ok) { this.err = r.error.message; return; } location.reload(); } }; }
+</script>{% endblock %}

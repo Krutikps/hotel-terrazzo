@@ -1,0 +1,58 @@
+{% extends "staff/base.html" %}{% load static %}{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Welcome back, {{ request.user.first_name }}</h1><p>{{ today|date:"l, j F Y" }} · {{ hotel.name }}</p></div>
+  <div class="btn-row"><a class="btn primary" href="{% url 'staff:reservation_new' %}">+ New booking</a><a class="btn" href="{% url 'staff:calendar' %}">Calendar</a></div></div>
+
+<div class="grid g5" style="margin-bottom:16px">
+  <a class="stat" href="{% url 'staff:arrivals' %}"><div class="l">Today's arrivals</div><div class="v">{{ s.arrivals }}</div><div class="s">{{ s.arrivals_pending }} still to check in</div></a>
+  <a class="stat" href="{% url 'staff:departures' %}"><div class="l">Today's departures</div><div class="v">{{ s.departures }}</div><div class="s">{{ s.departures_pending }} still in house</div></a>
+  <a class="stat" href="{% url 'staff:reservations' %}?view=inhouse"><div class="l">Current guests</div><div class="v">{{ s.current_guests }}</div><div class="s">{{ s.in_house }} bookings in house</div></a>
+  <a class="stat" href="{% url 'staff:rooms' %}?effective=AVAILABLE"><div class="l">Available rooms</div><div class="v">{{ s.available }}</div><div class="s">of {{ s.total_rooms }} · {{ s.reserved }} reserved today</div></a>
+  <a class="stat" href="{% url 'staff:rooms' %}?effective=OCCUPIED"><div class="l">Occupied rooms</div><div class="v">{{ s.occupied }}</div><div class="s">Occupancy {{ s.occupancy_pct }}%</div></a>
+  <a class="stat" href="{% url 'staff:blocks' %}"><div class="l">Blocked rooms</div><div class="v">{{ s.blocked }}</div><div class="s">today</div></a>
+  <a class="stat" href="{% url 'staff:maintenance' %}"><div class="l">Maintenance</div><div class="v">{{ s.maintenance }}</div><div class="s">out of service · {{ s.dirty }} to clean</div></a>
+  <a class="stat" href="{% url 'staff:reservations' %}?view=pending"><div class="l">Pending payments</div><div class="v">{{ s.pending_payments }}</div><div class="s">{{ hotel.currency_symbol }}{{ s.pending_amount|floatformat:0 }} outstanding</div></a>
+  <a class="stat" href="{% url 'staff:payments' %}"><div class="l">Today's revenue</div><div class="v">{{ hotel.currency_symbol }}{{ s.revenue_today|floatformat:0 }}</div><div class="s">net payments collected</div></a>
+  <div class="stat"><div class="l">Live holds</div><div class="v">{{ holds }}</div><div class="s">guests in checkout</div></div>
+</div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="stat"><div class="l">Occupancy (today)</div><div class="v">{{ s.occupancy_pct }}%</div><div class="s">MTD {{ s.mtd_occupancy }}%</div></div>
+  <div class="stat"><div class="l">ADR (today)</div><div class="v">{{ hotel.currency_symbol }}{{ s.adr|floatformat:0 }}</div><div class="s">MTD {{ hotel.currency_symbol }}{{ s.mtd_adr|floatformat:0 }}</div></div>
+  <div class="stat"><div class="l">RevPAR (today)</div><div class="v">{{ hotel.currency_symbol }}{{ s.revpar|floatformat:0 }}</div><div class="s">MTD {{ hotel.currency_symbol }}{{ s.mtd_revpar|floatformat:0 }}</div></div>
+  <div class="stat"><div class="l">Month to date</div><div class="v">{{ hotel.currency_symbol }}{{ s.mtd_revenue|floatformat:0 }}</div><div class="s">{{ s.mtd_bookings }} bookings · {{ s.mtd_cancellations }} cancellations</div></div>
+</div>
+
+<div class="grid g2">
+  <div class="card" style="margin:0"><h2>Occupancy % · last 14 days</h2><canvas id="cOcc" height="150"></canvas></div>
+  <div class="card" style="margin:0"><h2>Room revenue · last 14 days</h2><canvas id="cRev" height="150"></canvas></div>
+  <div class="card" style="margin:0"><h2>New reservations per day</h2><canvas id="cRes" height="150"></canvas></div>
+  <div class="grid g2"><div class="card" style="margin:0"><h2>Room-type revenue</h2><canvas id="cType" height="200"></canvas></div><div class="card" style="margin:0"><h2>Booking sources</h2><canvas id="cSrc" height="200"></canvas></div></div>
+</div>
+<div style="height:16px"></div>
+<div class="cols-2-1">
+  <div>
+    <div class="card"><div class="card-h"><h2>Today's arrivals</h2><a class="small" href="{% url 'staff:arrivals' %}">Check-in desk →</a></div>
+      {% include "staff/_res_mini.html" with items=arrivals empty="No arrivals today." %}</div>
+    <div class="card"><div class="card-h"><h2>Today's departures</h2><a class="small" href="{% url 'staff:departures' %}">Check-out desk →</a></div>
+      {% include "staff/_res_mini.html" with items=departures empty="No departures today." %}</div>
+    <div class="card"><div class="card-h"><h2>Next arrivals</h2><a class="small" href="{% url 'staff:reservations' %}">All upcoming →</a></div>
+      {% include "staff/_res_mini.html" with items=upcoming empty="No upcoming bookings." show_date=True %}</div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Recent activity</h2><a class="small" href="{% url 'staff:notifications' %}">All</a></div>
+    {% for n in recent %}<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b class="small">{{ n.subject }}</b><div class="small muted">{{ n.body|truncatechars:110 }}</div><div class="small muted">{{ n.created_at|timesince }} ago</div></div>{% empty %}<div class="empty">Nothing yet.</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'vendor/chart.umd.min.js' %}"></script>
+<script>
+var C = {{ charts|safe }}; var cs = getComputedStyle(document.documentElement); var acc = cs.getPropertyValue('--accent').trim(), ink = cs.getPropertyValue('--muted').trim();
+Chart.defaults.font.family = 'Inter, system-ui'; Chart.defaults.color = ink; Chart.defaults.plugins.legend.display = false;
+var pal = ['#b5573a', '#2c6a9a', '#2f7d5b', '#b7791f', '#6b4fa3', '#8a8f93', '#c28a9a'];
+new Chart('cOcc', { type: 'line', data: { labels: C.labels, datasets: [{ data: C.occupancy, borderColor: acc, backgroundColor: acc + '22', fill: true, tension: .3 }] }, options: { scales: { y: { min: 0, max: 100 } } } });
+new Chart('cRev', { type: 'bar', data: { labels: C.labels, datasets: [{ data: C.revenue, backgroundColor: acc }] } });
+new Chart('cRes', { type: 'bar', data: { labels: C.labels, datasets: [{ data: C.reservations, backgroundColor: '#2c6a9a' }] }, options: { scales: { y: { ticks: { precision: 0 } } } } });
+new Chart('cType', { type: 'doughnut', data: { labels: C.room_types.labels, datasets: [{ data: C.room_types.values, backgroundColor: pal }] }, options: { plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } } });
+new Chart('cSrc', { type: 'doughnut', data: { labels: C.sources.labels, datasets: [{ data: C.sources.values, backgroundColor: pal }] }, options: { plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } } });
+window.__autoRefresh = function () { if (!document.querySelector('dialog[open]')) location.reload(); };
+</script>{% endblock %}

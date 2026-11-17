@@ -1,0 +1,15 @@
+{% extends "staff/base.html" %}{% load hms %}{% block title %}Departures{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Departures — {{ day|date:"l j F" }}</h1><p>Review charges, add extras, collect the balance, generate the invoice.</p></div>
+  <form class="inline-form" method="get"><div class="field"><input class="input" type="date" name="date" value="{{ day|date:'Y-m-d' }}"></div><button class="btn">Go</button></form></div>
+{% if overdue %}<div class="card" style="border-color:var(--bad)"><h2>⚠ Overdue check-outs</h2>{% for r in overdue %}<a class="badge b-bad" href="{% url 'staff:reservation' r.pk %}">{{ r.reference }} · {{ r.guest.name }} · due {{ r.check_out|date:"j M" }}</a> {% endfor %}</div>{% endif %}
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in items %}<tr><td data-label="Booking"><a href="{% url 'staff:reservation' r.pk %}"><b>{{ r.reference }}</b></a></td><td data-label="Guest">{{ r.guest.name }}<div class="small muted">{{ r.guest.phone }}</div></td>
+<td data-label="Room">{{ r.assigned_room_numbers|default:"—" }}<div class="small muted">{{ r.room_type.name }}</div></td>
+<td data-label="Total" class="num">{{ hotel.currency_symbol }}{{ r.total|floatformat:2 }}</td><td data-label="Paid" class="num">{{ hotel.currency_symbol }}{{ r.amount_paid|floatformat:2 }}</td><td data-label="Balance" class="num"><b {% if r.balance > 0 %}style="color:var(--bad)"{% endif %}>{{ hotel.currency_symbol }}{{ r.balance|floatformat:2 }}</b></td>
+<td data-label="Status"><span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></td>
+<td>{% if r.status == 'CHECKED_IN' %}<button class="btn sm primary" data-open="dCheckout" data-fill='{"action":"{% url 'staff:res_checkout' r.pk %}","guest":"{{ r.guest.name|escapejs }}","total_txt":"{{ hotel.currency_symbol }}{{ r.total|floatformat:2 }}","paid_txt":"{{ hotel.currency_symbol }}{{ r.amount_paid|floatformat:2 }}","balance_txt":"{{ hotel.currency_symbol }}{{ r.balance|floatformat:2 }}","collect":"{{ r.balance|floatformat:2 }}"}'>Check out</button>{% else %}{% for inv in r.invoices.all|slice:":1" %}<a class="btn sm" href="{% url 'staff:invoice' inv.pk %}">Invoice</a>{% endfor %}{% endif %}</td></tr>
+{% empty %}<tr><td colspan="8" class="empty">No departures for this date.</td></tr>{% endfor %}</tbody></table></div></div>
+{% include "staff/_checkout_dialog.html" %}
+{% endblock %}
+{% block scripts %}<script>window.__autoRefresh = function () { if (!document.querySelector('dialog[open]')) location.reload(); };</script>{% endblock %}

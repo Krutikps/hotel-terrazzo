@@ -1,0 +1,7 @@
+<dialog id="dBlock"><form method="post" action="{% url 'staff:block_new' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <div class="dh">Block a room <button type="button" data-close>×</button></div><div class="db">
+  <p class="small muted">Blocked rooms immediately disappear from guest availability for these dates.</p>
+  <div class="field"><label class="f">Room</label>{{ block_form.room }}</div>
+  <div class="grid g2"><div class="field"><label class="f">First blocked night</label>{{ block_form.start_date }}</div><div class="field"><label class="f">Last blocked night</label>{{ block_form.end_date }}</div></div>
+  <div class="field"><label class="f">Reason</label>{{ block_form.reason }}</div><div class="field"><label class="f">Notes</label>{{ block_form.notes }}</div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Block room</button></div></form></dialog>

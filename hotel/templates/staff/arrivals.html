@@ -1,0 +1,23 @@
+{% extends "staff/base.html" %}{% load hms %}{% block title %}Arrivals{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Arrivals — {{ day|date:"l j F" }}</h1><p>Verify the booking, check ID, confirm the room, collect payment, check in.</p></div>
+  <form class="inline-form" method="get"><div class="field"><input class="input" type="date" name="date" value="{{ day|date:'Y-m-d' }}"></div><button class="btn">Go</button></form></div>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Stay</th><th>Purpose · requests</th><th class="num">Pending</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in items %}<tr><td data-label="Booking"><a href="{% url 'staff:reservation' r.pk %}"><b>{{ r.reference }}</b></a><div class="small muted">{{ r.get_source_display }}</div></td>
+<td data-label="Guest">{{ r.guest.name }}<div class="small muted">{{ r.guest.phone }}</div></td>
+<td data-label="Room">{{ r.room_type.name }}{% if r.room_count > 1 %} ×{{ r.room_count }}{% endif %}<div class="small">{% for rr in r.rooms.all %}{% if rr.room %}<span class="badge b-{{ rr.room.status }}">{{ rr.room.room_number }} · {{ rr.room.get_status_display }}</span> {% else %}<span class="badge b-warn">Unassigned</span> {% endif %}{% endfor %}</div></td>
+<td data-label="Stay">{{ r.nights }}n → {{ r.check_out|date:"j M" }}<div class="small muted">{{ r.adults }}A {{ r.children }}C{% if r.arrival_time %} · ETA {{ r.arrival_time }}{% endif %}</div></td>
+<td data-label="Purpose" style="max-width:240px">{{ r.purpose|default:"—" }}<div>{% for q in r.requests.all %}<span class="badge b-warn">{{ q.request_type }}</span> {% endfor %}</div><div class="small muted">{{ r.special_requests|truncatechars:80 }}</div></td>
+<td data-label="Pending" class="num"><b {% if r.balance > 0 %}style="color:var(--bad)"{% endif %}>{{ hotel.currency_symbol }}{{ r.balance|floatformat:2 }}</b></td>
+<td data-label="Status"><span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></td>
+<td>{% if r.status == 'CONFIRMED' %}<button class="btn sm primary" data-open="dCheckin" data-fill='{"action":"{% url 'staff:res_checkin' r.pk %}","guest":"{{ r.guest.name|escapejs }}","id_number":"{{ r.guest.id_number|escapejs }}","id_type":"{{ r.guest.id_type|escapejs }}","rooms":"{{ r.assigned_room_numbers|default:'auto-assign a ready room'|escapejs }}","balance_txt":"{{ hotel.currency_symbol }}{{ r.balance|floatformat:2 }}","collect":"{{ r.balance|floatformat:2 }}"}'>Check in</button>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="8" class="empty">No arrivals for this date.</td></tr>{% endfor %}</tbody></table></div></div>
+<dialog id="dCheckin"><form method="post" data-f="action">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <div class="dh">Check in — <span data-f="guest"></span> <button type="button" data-close>×</button></div><div class="db">
+  <div class="grid g2"><div class="field"><label class="f">ID type</label><select class="input" name="id_type" data-f="id_type">{% for t in id_types %}<option>{{ t }}</option>{% endfor %}</select></div><div class="field"><label class="f">ID number</label><input class="input" name="id_number" data-f="id_number" required></div></div>
+  <p>Room(s): <b data-f="rooms"></b> · Balance <b data-f="balance_txt"></b></p>
+  <div class="grid g2"><div class="field"><label class="f">Collect payment now</label><input class="input" type="number" step="0.01" min="0" name="collect" data-f="collect" value="0"></div><div class="field"><label class="f">Method</label><select class="input" name="method">{% for k, v in methods %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div></div>
+  <div class="field"><label class="f">Payment reference / deposit note</label><input class="input" name="reference"></div><div class="field"><label class="f">Notes</label><textarea class="input" name="notes"></textarea></div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Check in guest</button></div></form></dialog>
+{% endblock %}
+{% block scripts %}<script>window.__autoRefresh = function () { if (!document.querySelector('dialog[open]')) location.reload(); };</script>{% endblock %}

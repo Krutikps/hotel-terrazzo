@@ -1,0 +1,7 @@
+{% extends "guest/base.html" %}{% block title %}About · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">About us</span><h1>{{ hotel.name }}</h1><p>Rooftop dining & restaurant · Managed by Aarushi Hospitality</p></div></div>
+<section class="section"><div class="wrap" style="max-width:760px"><p style="font-size:1.15rem">{{ hotel.description }}</p><p class="muted">We're a small team that believes in doing the simple things well: a clean, quiet room, honest prices, and people who are glad you're here. Book direct with us for the best available rate and flexible plans.</p>
+  <div class="grid g3" style="margin-top:24px"><div class="card amen"><div class="ic">🏛</div><b>Crafted spaces</b></div><div class="card amen"><div class="ic">🌿</div><b>Calm & green</b></div><div class="card amen"><div class="ic">🤝</div><b>Warm service</b></div></div>
+  <p style="margin-top:28px"><a class="btn primary" href="{% url 'guest:availability' %}">Check availability</a></p></div></section>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "guest/base.html" %}{% block title %}Rooms & suites · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Accommodation</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Rooms & suites</h1><p>Choose a room category, then pick the rate that suits you. Live availability and pricing are shown for your dates.</p></div></div>
+<section class="section"><div class="wrap"><div style="margin-bottom:28px">{% include "guest/_search.html" %}</div><div class="grid g3">{% for t in types %}{% include "guest/_room_card.html" %}{% empty %}<p>No rooms are currently listed.</p>{% endfor %}</div></div></section>
+{% endblock %}

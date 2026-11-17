@@ -1,0 +1,2 @@
+{% extends "staff/base.html" %}{% block title %}No access{% endblock %}
+{% block content %}<div class="card empty"><h1>You don't have access to this screen</h1><p>Your role doesn't include the <code>{{ perm }}</code> permission. Ask a manager if you need it.</p><a class="btn" href="/staff/">Back to dashboard</a></div>{% endblock %}

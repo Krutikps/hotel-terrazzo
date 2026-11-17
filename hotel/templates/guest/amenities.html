@@ -1,0 +1,7 @@
+{% extends "guest/base.html" %}{% load static %}{% block title %}Amenities · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Facilities</span><h1>Amenities</h1><p>In-room comforts and hotel facilities for a relaxed stay.</p></div></div>
+<section class="section"><div class="wrap"><div class="grid g4">{% for a in amenities %}<div class="card amen"><div class="ic">{{ a.icon|default:"✦" }}</div><b>{{ a.name }}</b></div>{% endfor %}</div>
+  <div class="grid g2" style="margin-top:34px"><div class="photo-card" style="background-image:url('{% static 'brand/restaurant.jpg' %}')"><div><h3>Restaurant</h3><p style="margin:0;opacity:.9">An all-day menu in a striking arched, terrazzo-floored dining room.</p></div></div>
+    <div class="photo-card" style="background-image:url('{% static 'brand/restaurant-arches.jpg' %}')"><div><h3>Rooftop dining</h3><p style="margin:0;opacity:.9">Open-air rooftop tables above the city.</p></div></div></div></div></section>
+{% endblock %}

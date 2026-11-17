@@ -1,0 +1,9 @@
+{% extends "guest/base.html" %}{% block title %}Contact · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Get in touch</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Contact us</h1></div></div>
+<section class="section"><div class="wrap grid g2">
+  <div><h3>{{ hotel.name }}</h3><p>{{ hotel.address }}<br>{{ hotel.city }}, {{ hotel.state }} {{ hotel.postal_code }}<br>{{ hotel.country }}</p><p>📞 <a href="tel:{{ hotel.phone }}">{{ hotel.phone }}</a><br>✉️ <a href="mailto:{{ hotel.email }}">{{ hotel.email }}</a></p><p><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query={% if hotel.latitude %}{{ hotel.latitude }},{{ hotel.longitude }}{% else %}{{ hotel.name|urlencode }}+{{ hotel.address|urlencode }}+{{ hotel.city|urlencode }}+{{ hotel.postal_code|urlencode }}{% endif %}">Open in Maps ↗</a></p></div>
+  <form class="card" method="post">{% csrf_token %}<div class="body">{% if sent %}<div class="alert ok">Thank you — we've received your message and will reply shortly.</div>{% endif %}
+    <div class="field"><label>Your name</label><input class="input" name="name" required></div><div class="field"><label>Email</label><input class="input" type="email" name="email" required></div><div class="field"><label>Message</label><textarea class="input" name="message" rows="5" required></textarea></div>
+    <input type="text" name="website" style="position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary">Send message</button></div></form></div></section>
+{% endblock %}

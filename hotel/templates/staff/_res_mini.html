@@ -1,0 +1,5 @@
+{% if items %}<div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Booking</th><th>Guest</th><th>Room</th>{% if show_date %}<th>Arrives</th>{% endif %}<th class="num">Pending</th><th>Status</th></tr></thead><tbody>
+{% for r in items %}<tr class="clickable" data-href="{% url 'staff:reservation' r.pk %}"><td data-label="Booking"><a href="{% url 'staff:reservation' r.pk %}">{{ r.reference }}</a></td><td data-label="Guest">{{ r.guest.name }}<div class="small muted">{{ r.adults }}A {{ r.children }}C · {{ r.purpose|default:"—" }}</div></td>
+<td data-label="Room">{{ r.room_type.name }}<div class="small muted">{{ r.assigned_room_numbers|default:"Unassigned" }}</div></td>{% if show_date %}<td data-label="Arrives">{{ r.check_in|date:"D j M" }}</td>{% endif %}
+<td class="num" data-label="Pending">{{ hotel.currency_symbol }}{{ r.balance|floatformat:0 }}</td><td data-label="Status"><span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="empty">{{ empty }}</div>{% endif %}

@@ -1,0 +1,41 @@
+{% extends "guest/base.html" %}{% block title %}Payment · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Secure payment</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Pay to confirm your booking</h1></div></div>
+<section class="section" style="padding-top:28px"><div class="wrap" x-data="payPage()" x-init="init()" x-cloak>
+  <div class="co">
+    <div class="card"><div class="body">
+      <template x-if="state==='PENDING_PAYMENT' && left>0"><div>
+        <p class="muted" style="margin:0">Your room is held for</p><div class="countdown" x-text="clock()"></div>
+        <div class="alert bad" x-show="error" x-text="error" style="margin-top:12px"></div>
+        <p>Total to pay now: <b style="font-size:1.4rem">{{ hotel.currency_symbol }}{{ amount|floatformat:2 }}</b></p>
+        <button class="btn primary block" @click="openPay()" :disabled="busy"><span x-show="busy" class="spin"></span> <span x-text="busy ? 'Opening secure payment…' : 'Pay now'"></span></button>
+        <p class="small muted" style="margin-top:12px">🔒 Payments are processed by our payment partner. We never see or store your card details. Your booking is confirmed only after the payment is verified by our server.</p>
+        <button class="btn sm" style="margin-top:8px" @click="leave()">Cancel and release the room</button></div></template>
+      <template x-if="(state==='RELEASED' || state==='PENDING_PAYMENT' && left<=0)"><div>
+        <h3 x-text="failed ? 'Payment could not be completed.' : 'Your booking session has expired.'"></h3><p class="muted">The room has been released. If it's still available you can try again with the same details.</p>
+        <div class="alert bad" x-show="error" x-text="error"></div>
+        <button class="btn primary" @click="restart()" :disabled="busy">Try again</button> <a class="btn" href="{% url 'guest:availability' %}?check_in={{ res.check_in|date:'Y-m-d' }}&check_out={{ res.check_out|date:'Y-m-d' }}&adults={{ res.adults }}&children={{ res.children }}&rooms={{ res.room_count }}">Choose another room</a></div></template>
+      <template x-if="state==='CONFIRMED'"><div><h3>Payment received ✓</h3><p>Redirecting to your confirmation…</p></div></template></div></div>
+    <aside class="card"><div class="body"><h3>Your booking</h3><p><b>{{ res.room_type.name }}</b> — {{ res.rate_plan.name }}<br>{{ res.check_in|date:"D j M Y" }} → {{ res.check_out|date:"D j M Y" }} · {{ res.nights }} night{{ res.nights|pluralize }}<br>{{ res.adults }} adult{{ res.adults|pluralize }}, {{ res.children }} child{{ res.children|pluralize:"ren" }} · {{ res.room_count }} room{{ res.room_count|pluralize }}</p>
+      {% for l in lines %}<div class="line"><span>{{ l.description }}</span><span>{{ hotel.currency_symbol }}{{ l.amount|floatformat:2 }}</span></div>{% endfor %}<div class="line total"><span>Total</span><span>{{ hotel.currency_symbol }}{{ res.total|floatformat:2 }}</span></div></div></aside></div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script>
+function payPage() {
+  var C = {{ client_json|safe }}, S = {{ status_json|safe }};
+  return { state: S.state, left: S.seconds, busy: false, error: '', failed: S.state === 'RELEASED', timer: null,
+    clock: function () { var m = Math.floor(this.left / 60), s = this.left % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; },
+    init: function () { var self = this; this.timer = setInterval(function () { if (self.left > 0) self.left--; }, 1000); setInterval(function () { self.poll(); }, 5000); },
+    poll: async function () { var r = await api('/api/reservations/{{ res.access_token }}/'); if (!r.ok) return; this.state = r.data.status; if (r.data.status === 'PENDING_PAYMENT') this.left = r.data.seconds_left; if (r.data.status === 'CONFIRMED') location.href = '{% url "guest:confirmation" res.access_token %}'; if (r.data.status === 'RELEASED') { this.failed = this.failed || false; } },
+    openPay: async function () { this.error = ''; if (!C) { this.error = 'Payment is not available right now. Please try again.'; return; } this.busy = true;
+      if (C.provider === 'razorpay') { var self = this; await this.loadRzp(); var rz = new Razorpay({ key: C.key, order_id: C.order_id, amount: C.amount, currency: C.currency, name: '{{ hotel.name|escapejs }}', description: 'Booking payment',
+          prefill: { name: '{{ res.guest.name|escapejs }}', email: '{{ res.guest.email|escapejs }}', contact: '{{ res.guest.phone|escapejs }}' }, theme: { color: '#b5573a' },
+          handler: async function (resp) { var r = await api('/api/payments/verify/', { order_id: resp.razorpay_order_id, payment_id: resp.razorpay_payment_id, signature: resp.razorpay_signature }); self.busy = false; if (r.ok && r.data.status === 'CONFIRMED') { location.href = '{% url "guest:confirmation" res.access_token %}'; } else { self.error = r.ok ? 'Payment could not be completed.' : r.error.message; self.poll(); } },
+          modal: { ondismiss: function () { self.busy = false; } } });
+        rz.on('payment.failed', async function () { await api('/api/payments/failed/', { order_id: C.order_id, reason: 'Payment failed' }); self.failed = true; self.state = 'RELEASED'; self.busy = false; }); rz.open(); }
+      else { location.href = C.checkout_url; } },
+    loadRzp: function () { return new Promise(function (res) { if (window.Razorpay) return res(); var s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; document.head.appendChild(s); }); },
+    leave: async function () { await api('/api/reservations/{{ res.access_token }}/release/', {}); this.state = 'RELEASED'; this.failed = false; },
+    restart: async function () { this.busy = true; var r = await api('/api/reservations/{{ res.access_token }}/restart/', {}); this.busy = false; if (!r.ok) { this.error = r.error.code === 'unavailable' ? 'This room is no longer available. Please select another room.' : r.error.message; return; } location.href = r.data.payment_url; } };
+}
+</script>{% endblock %}

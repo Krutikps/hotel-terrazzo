@@ -1,0 +1,36 @@
+{% extends "staff/base.html" %}{% block title %}Reservations{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Reservations</h1><p>Upcoming bookings and everything else, with live payment & room status.</p></div>
+  <a class="btn primary" href="{% url 'staff:reservation_new' %}">+ New booking</a></div>
+<div class="tabs">
+  <a class="{% if view == 'upcoming' %}on{% endif %}" href="?view=upcoming">Upcoming</a><a class="{% if view == 'inhouse' %}on{% endif %}" href="?view=inhouse">In house</a>
+  <a class="{% if view == 'pending' %}on{% endif %}" href="?view=pending">Pending payments</a><a class="{% if view == 'all' %}on{% endif %}" href="?view=all">All bookings</a>
+</div>
+<form class="filters" method="get"><input type="hidden" name="view" value="{{ view }}">
+  <div style="flex:2;min-width:200px"><label class="f">Booking ID / guest / phone / room</label><input class="input" name="q" value="{{ q }}" placeholder="HTS-2026-000012, Sharma, 98450…, 201"></div>
+  <div><label class="f">Status</label><select class="input" name="status"><option value="">Any</option>{% for k, v in statuses %}<option value="{{ k }}" {% if f.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label class="f">Payment</label><select class="input" name="payment"><option value="">Any</option>{% for k, v in pay_statuses %}<option value="{{ k }}" {% if f.payment == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label class="f">Source</label><select class="input" name="source"><option value="">Any</option>{% for k, v in sources %}<option value="{{ k }}" {% if f.source == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label class="f">Room type</label><select class="input" name="room_type"><option value="">Any</option>{% for t in room_types %}<option value="{{ t.id }}" {% if f.room_type == t.id|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+  <div><label class="f">Arrival from</label><input class="input" type="date" name="from" value="{{ f.from }}"></div><div><label class="f">to</label><input class="input" type="date" name="to" value="{{ f.to }}"></div>
+  <div><button class="btn primary">Filter</button> <a class="btn ghost" href="?view={{ view }}">Reset</a></div>
+</form>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack">
+<thead><tr><th>Booking ID</th><th>Guest</th><th>Room type</th><th>Room</th><th>Check-in</th><th>Check-out</th><th class="num">Nights</th><th class="num">Adults</th><th class="num">Child</th><th>Purpose</th><th>Special request</th><th class="num">Total tariff</th><th class="num">Paid</th><th class="num">Pending</th><th>Booking</th><th>Payment</th><th>Source</th></tr></thead>
+<tbody>{% for r in page_obj %}<tr class="clickable" data-href="{% url 'staff:reservation' r.pk %}">
+<td data-label="Booking ID" class="nowrap"><a href="{% url 'staff:reservation' r.pk %}"><b>{{ r.reference }}</b></a></td>
+<td data-label="Guest">{{ r.guest.name }}<div class="small muted">{{ r.guest.phone }}</div></td>
+<td data-label="Room type">{{ r.room_type.name }}{% if r.room_count > 1 %} ×{{ r.room_count }}{% endif %}<div class="small muted">{{ r.rate_plan.name }}</div></td>
+<td data-label="Room">{{ r.assigned_room_numbers|default:"—" }}</td>
+<td data-label="Check-in" class="nowrap">{{ r.check_in|date:"D j M Y" }}</td><td data-label="Check-out" class="nowrap">{{ r.check_out|date:"D j M Y" }}</td>
+<td data-label="Nights" class="num">{{ r.nights }}</td><td data-label="Adults" class="num">{{ r.adults }}</td><td data-label="Children" class="num">{{ r.children }}</td>
+<td data-label="Purpose">{{ r.purpose|default:"—" }}</td>
+<td data-label="Special request" style="max-width:220px">{% for q in r.requests.all %}<span class="badge b-warn">{{ q.request_type }}</span> {% endfor %}{% if r.special_requests %}<div class="small muted">{{ r.special_requests|truncatechars:70 }}</div>{% elif not r.requests.all %}—{% endif %}</td>
+<td data-label="Total" class="num">{{ hotel.currency_symbol }}{{ r.total|floatformat:2 }}</td><td data-label="Paid" class="num">{{ hotel.currency_symbol }}{{ r.amount_paid|floatformat:2 }}</td>
+<td data-label="Pending" class="num"><b {% if r.balance > 0 and r.status != 'CANCELLED' %}style="color:var(--bad)"{% endif %}>{{ hotel.currency_symbol }}{{ r.balance|floatformat:2 }}</b></td>
+<td data-label="Status"><span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></td><td data-label="Payment"><span class="badge b-{{ r.payment_status }}">{{ r.get_payment_status_display }}</span></td>
+<td data-label="Source">{{ r.get_source_display }}</td></tr>
+{% empty %}<tr><td colspan="17" class="empty">No reservations match.</td></tr>{% endfor %}</tbody></table></div></div>
+{% if page_obj.paginator.num_pages > 1 %}<div class="btn-row" style="justify-content:center">{% if page_obj.has_previous %}<a class="btn sm" href="?page={{ page_obj.previous_page_number }}&{{ query }}">← Prev</a>{% endif %}<span class="muted small">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} bookings</span>{% if page_obj.has_next %}<a class="btn sm" href="?page={{ page_obj.next_page_number }}&{{ query }}">Next →</a>{% endif %}</div>{% endif %}
+{% endblock %}
+{% block scripts %}<script>window.__autoRefresh = function () { if (!document.querySelector('dialog[open]') && !document.activeElement.matches('input,select')) location.reload(); };</script>{% endblock %}

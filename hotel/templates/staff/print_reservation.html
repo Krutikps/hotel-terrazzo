@@ -1,0 +1,11 @@
+{% extends "staff/base.html" %}{% block title %}{{ res.reference }}{% endblock %}
+{% block content %}
+<div class="page-head no-print"><div class="grow"><h1>Booking {{ res.reference }}</h1></div><button class="btn primary" onclick="window.print()">Print</button></div>
+<div class="card" style="max-width:820px"><h2 style="font-size:20px">{{ hotel.name }} — Booking confirmation</h2>
+<dl class="kv"><dt>Booking number</dt><dd><b>{{ res.reference }}</b></dd><dt>Guest</dt><dd>{{ res.guest.name }} · {{ res.guest.phone }} · {{ res.guest.email }}</dd><dt>Room</dt><dd>{{ res.room_type.name }} ({{ res.rate_plan.name }}) {% if res.assigned_room_numbers %}— Room {{ res.assigned_room_numbers }}{% endif %}</dd>
+<dt>Check-in</dt><dd>{{ res.check_in|date:"l j F Y" }} (from {{ hotel.check_in_time|time:"H:i" }})</dd><dt>Check-out</dt><dd>{{ res.check_out|date:"l j F Y" }} (by {{ hotel.check_out_time|time:"H:i" }})</dd><dt>Guests</dt><dd>{{ res.adults }} adults, {{ res.children }} children · {{ res.nights }} nights · {{ res.room_count }} room(s)</dd>
+<dt>Purpose</dt><dd>{{ res.purpose|default:"—" }}</dd><dt>Special requests</dt><dd>{{ res.special_requests|default:"—" }}</dd></dl>
+{% for l in res.lines.all %}<div class="line"><span>{{ l.description }}</span><span>{{ hotel.currency_symbol }}{{ l.amount|floatformat:2 }}</span></div>{% endfor %}
+<div class="line total"><span>Total</span><span>{{ hotel.currency_symbol }}{{ res.total|floatformat:2 }}</span></div><div class="line"><span>Paid</span><span>{{ hotel.currency_symbol }}{{ res.amount_paid|floatformat:2 }}</span></div><div class="line"><span>Balance</span><span>{{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }}</span></div>
+<p class="small muted">Cancellation policy: {{ res.cancellation_policy }}</p></div>
+{% endblock %}

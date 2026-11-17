@@ -1,0 +1,26 @@
+{% extends "guest/base.html" %}{% block title %}Availability · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Book your stay</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Check availability</h1></div></div>
+<section class="section" style="padding-top:28px"><div class="wrap" x-data="results()" x-init="load()">
+  <div style="margin-bottom:26px">{% include "guest/_search.html" %}</div>
+  <div class="alert bad" x-show="error" x-text="error"></div>
+  <template x-if="loading"><div><div class="skeleton"></div><div class="skeleton"></div></div></template>
+  <div x-show="!loading && !error && list.length==0" class="card"><div class="body center"><h3>No rooms available for your selected dates.</h3><p class="muted">Try different dates or fewer rooms. You can also call us on {{ hotel.phone }}.</p></div></div>
+  <p class="muted" x-show="!loading && list.length" x-text="list.length + ' room type(s) available · ' + nights + ' night(s) · prices include meals where stated, taxes are added at the end'"></p>
+  <template x-for="rt in list" :key="rt.id"><article class="card result" style="margin-bottom:22px">
+    <div class="pics"><img class="main" :src="rt.images.length ? rt.images[rt.idx || 0].src : ''" :alt="rt.name" data-zoom=""><div class="thumbs"><template x-for="(im, i) in rt.images" :key="i"><img :src="im.src" :alt="im.caption" :class="{on: (rt.idx||0)==i}" @click="rt.idx = i; $el.closest('.pics').querySelector('.main').dataset.zoom = im.src"></template></div></div>
+    <div class="body"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0" x-text="rt.name"></h3><span class="tag" :class="rt.available <= 2 ? 'warn' : 'ok'" x-text="rt.available <= 2 ? 'Only ' + rt.available + ' left!' : rt.available + ' available'"></span></div>
+      <p class="muted" style="margin:4px 0" x-text="rt.short_description"></p>
+      <div class="tags"><span class="tag" x-text="rt.size_sqft + ' sq ft'"></span><span class="tag" x-text="rt.bed_type"></span><span class="tag" x-text="'Up to ' + rt.max_occupancy + ' guests'"></span><template x-for="a in rt.amenities.slice(0,6)"><span class="tag" x-text="a.icon + ' ' + a.name"></span></template><a :href="rt.url" class="small" style="align-self:center">All details →</a></div>
+      <template x-for="p in rt.plans" :key="p.id"><div class="plan"><div><b x-text="p.name"></b> <span class="tag" :class="p.refundable ? 'ok' : 'warn'" x-text="p.meal_label"></span><div class="small muted" x-text="p.description"></div><div class="small" x-text="p.cancellation"></div></div>
+        <div style="text-align:right"><div class="price"><span x-text="money(p.quote.avg_nightly)"></span><small> / night</small></div><div class="small muted"><span x-text="nights"></span> night(s): <b x-text="money(p.quote.subtotal - p.quote.discount)"></b> <span x-show="p.quote.tax_total > 0" x-text="'+ ' + money(p.quote.tax_total) + ' tax'"></span></div><a class="btn primary sm" style="margin-top:6px" :href="'{% url 'guest:checkout' %}?room_type=' + rt.id + '&rate_plan=' + p.id + '&' + qs">Select</a></div></div></template></div></article></template>
+</div></section>
+{% endblock %}
+{% block scripts %}<script>
+function results() { var qs = location.search.slice(1).split('&').filter(function (x) { return !/^room=|^room_type=|^rate_plan=/.test(x); }).join('&');
+  return { loading: true, error: '', list: [], nights: 0, qs: qs, money: window.money,
+    load: async function () { var p = new URLSearchParams(location.search); if (!p.get('check_in')) { this.loading = false; this.error = ''; var d = new Date(); this.qs = ''; }
+      var r = await api('/api/availability/?' + (location.search.slice(1) || 'check_in={{ search.check_in }}&check_out={{ search.check_out }}&adults=2&children=0&rooms=1'));
+      this.loading = false; if (!r.ok) { this.error = r.error.message; return; } this.list = r.data.results; this.nights = r.data.nights;
+      if (!location.search) this.qs = 'check_in={{ search.check_in }}&check_out={{ search.check_out }}&adults=2&children=0&rooms=1'; } }; }
+</script>{% endblock %}

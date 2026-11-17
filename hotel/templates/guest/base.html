@@ -1,0 +1,46 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ hotel.name }}{% endblock %}{% if hotel.city %} · {{ hotel.city }}{% endif %}</title>
+  <meta name="description" content="{% block desc %}{{ hotel.tagline }}. Book direct at {{ hotel.name }}.{% endblock %}">
+  <link rel="icon" type="image/png" href="{% static 'brand/logo-mark.png' %}"><meta name="theme-color" content="#0E283C">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/guest.css' %}">
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<header class="nav"><div class="wrap in">
+  <a class="logo" href="{% url 'guest:home' %}" aria-label="{{ hotel.name }}"><img src="{% static 'brand/logo-mark.png' %}" alt=""><span class="wm"><b>Hotel Terrazzo</b><small>Suites · Rooftop dining</small></span></a>
+  <button class="burger" aria-label="Menu" onclick="document.getElementById('mainnav').classList.toggle('open')">☰</button>
+  <nav id="mainnav">
+    <a href="{% url 'guest:rooms' %}" class="{% if page == 'rooms' %}on{% endif %}">Rooms</a><a href="{% url 'guest:offers' %}" class="{% if page == 'offers' %}on{% endif %}">Offers</a><a href="{% url 'guest:amenities' %}" class="{% if page == 'amenities' %}on{% endif %}">Amenities</a>
+    <a href="{% url 'guest:gallery' %}" class="{% if page == 'gallery' %}on{% endif %}">Gallery</a><a href="{% url 'guest:about' %}" class="{% if page == 'about' %}on{% endif %}">About</a><a href="{% url 'guest:contact' %}" class="{% if page == 'contact' %}on{% endif %}">Contact</a>
+    <a href="{% url 'guest:my_booking' %}" class="{% if page == 'booking' %}on{% endif %}">My booking</a><a class="btn primary sm" href="{% url 'guest:availability' %}">Book now</a>
+  </nav></div></header>
+{% if messages %}<div class="toast-g">{% for m in messages %}<div class="alert {% if m.tags == 'error' %}bad{% elif m.tags == 'success' %}ok{% endif %}">{{ m }}</div>{% endfor %}</div>{% endif %}
+<main>{% block content %}{% endblock %}</main>
+<footer class="foot"><div class="wrap grid g3">
+  <div><img class="flogo" src="{% static 'brand/logo-cream.png' %}" alt="{{ hotel.name }}"><p class="small">{{ hotel.address }}<br>{{ hotel.city }}{% if hotel.state %}, {{ hotel.state }}{% endif %} {{ hotel.postal_code }}<br>{{ hotel.country }}</p></div>
+  <div><h4>Contact</h4><p class="small"><a href="tel:{{ hotel.phone }}">{{ hotel.phone }}</a><br><a href="mailto:{{ hotel.email }}">{{ hotel.email }}</a><br>Check-in {{ hotel.check_in_time|time:"H:i" }} · Check-out {{ hotel.check_out_time|time:"H:i" }}</p></div>
+  <div><h4>Guests</h4><p class="small"><a href="{% url 'guest:availability' %}">Check availability</a><br><a href="{% url 'guest:my_booking' %}">Manage my booking</a><br><a href="{% url 'guest:offers' %}">Offers</a></p></div>
+  <div class="small" style="grid-column:1/-1;opacity:.7">© {% now "Y" %} {{ hotel.name }} · Managed by Aarushi Hospitality. Secure payments · Best rates when you book direct. <a href="{% url 'staff:login' %}" style="opacity:.6">Staff</a></div></div></footer>
+<div class="mbar"><a class="btn primary block" href="{% url 'guest:availability' %}">Check availability</a></div>
+<div class="lightbox" id="lb" onclick="this.classList.remove('on')"><div><img id="lbImg" alt=""><div class="cap" id="lbCap"></div></div></div>
+<script>
+  window.hotelCurrency = "{{ hotel.currency_symbol }}";
+  window.money = function (v) { return window.hotelCurrency + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 }); };
+  window.money2 = function (v) { return window.hotelCurrency + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  window.CSRF = "{{ csrf_token }}";
+  window.api = async function (url, body) {
+    var init = { method: body ? 'POST' : 'GET', headers: { 'Accept': 'application/json', 'X-CSRFToken': window.CSRF }, credentials: 'same-origin' };
+    if (body) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+    try { var r = await fetch(url, init); return await r.json(); } catch (e) { return { ok: false, error: { code: 'network', message: 'We could not reach the server. Please check your connection and try again.' } }; }
+  };
+  document.addEventListener('click', function (e) { var im = e.target.closest('[data-zoom]'); if (im) { document.getElementById('lbImg').src = im.dataset.zoom || im.src; document.getElementById('lbCap').textContent = im.alt || ''; document.getElementById('lb').classList.add('on'); } });
+  setTimeout(function () { var t = document.querySelector('.toast-g'); if (t) t.remove(); }, 8000);
+</script>
+{% block scripts %}{% endblock %}
+</body></html>

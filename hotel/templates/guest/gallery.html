@@ -1,0 +1,5 @@
+{% extends "guest/base.html" %}{% block title %}Gallery · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Gallery</span><h1 style="font-size:clamp(2rem,5vw,3rem)">A look inside</h1></div></div>
+<section class="section"><div class="wrap"><div class="masonry">{% for i in images %}<img src="{{ i.src }}" alt="{{ i.room_type.name }} — {{ i.caption }}" data-zoom="{{ i.src }}" loading="lazy">{% empty %}<p>Photos coming soon.</p>{% endfor %}</div></div></section>
+{% endblock %}

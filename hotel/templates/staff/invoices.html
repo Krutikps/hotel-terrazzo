@@ -1,0 +1,8 @@
+{% extends "staff/base.html" %}{% block title %}Invoices{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Invoices</h1><p>Generated at check-out, or from any booking's page.</p></div></div>
+<form class="filters" method="get"><div style="flex:1"><label class="f">Invoice no. / booking / guest</label><input class="input" name="q" value="{{ q }}"></div><div><button class="btn primary">Search</button></div></form>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Invoice</th><th>Booking</th><th>Guest</th><th>Issued</th><th class="num">Total</th><th class="num">Paid</th><th></th></tr></thead><tbody>
+{% for i in page_obj %}<tr><td data-label="Invoice"><a href="{% url 'staff:invoice' i.pk %}"><b>{{ i.number }}</b></a></td><td data-label="Booking"><a href="{% url 'staff:reservation' i.reservation.pk %}">{{ i.reservation.reference }}</a></td><td data-label="Guest">{{ i.reservation.guest.name }}</td><td data-label="Issued">{{ i.issued_at|date:"j M Y" }}</td><td data-label="Total" class="num">{{ hotel.currency_symbol }}{{ i.total|floatformat:2 }}</td><td data-label="Paid" class="num">{{ hotel.currency_symbol }}{{ i.paid|floatformat:2 }}</td><td class="nowrap"><a class="btn sm" href="{% url 'staff:invoice' i.pk %}">View</a> <a class="btn sm" href="{% url 'staff:invoice_pdf' i.pk %}" target="_blank">PDF</a></td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No invoices yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "staff/base.html" %}{% load hms %}{% block title %}Pricing calendar{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Pricing calendar</h1><p>Set the nightly price and restrictions per date. Highlighted prices are explicit overrides; others come from base rate + pricing rules (weekend / season / holiday / event).</p></div>
+  <div class="btn-row"><button class="btn" id="prev">← 2 weeks</button><button class="btn" id="today">Today</button><button class="btn" id="next">2 weeks →</button>{% if can_edit %}<button class="btn primary" data-open="dBulk">Bulk update</button>{% endif %}<a class="btn" href="{% url 'staff:crud_list' 'rateplans' %}">Rate plans</a></div></div>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl pgrid" id="grid"></table></div></div>
+<p class="small muted">Prices shown are the room-only nightly rate before rate-plan adjustments, extra-guest charges, meals and tax. Click a cell to edit it. <span class="badge b-bad">stop</span> = stop-sell · CTA/CTD = closed to arrival / departure · min = minimum stay.</p>
+
+<dialog id="dCell"><form id="cellForm"><div class="dh"><span id="cellTitle">Edit</span> <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Price per night (empty = use base rate + rules)</label><input class="input" type="number" step="0.01" min="0" id="cPrice"></div>
+  <div class="field"><label class="f">Minimum stay (nights, for arrivals on this date)</label><input class="input" type="number" min="0" id="cMin"></div>
+  <label><input type="checkbox" class="chk" id="cCta"> Closed to arrival</label><br><label><input type="checkbox" class="chk" id="cCtd"> Closed to departure</label><br><label><input type="checkbox" class="chk" id="cStop"> Stop sell (not bookable)</label></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button>{% if can_edit %}<button class="btn primary">Save</button>{% endif %}</div></form></dialog>
+
+<dialog id="dBulk"><form id="bulkForm"><div class="dh">Bulk pricing update <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Room types</label><div class="chk-list">{% for t in room_types %}<label><input type="checkbox" class="chk" name="rt" value="{{ t.id }}" checked> {{ t.name }}</label>{% endfor %}</div></div>
+  <div class="grid g2"><div class="field"><label class="f">From</label><input class="input" type="date" id="bFrom" required></div><div class="field"><label class="f">To</label><input class="input" type="date" id="bTo" required></div></div>
+  <div class="field"><label class="f">Days of week (none = every day)</label><div class="btn-row">{% for d in "Mon,Tue,Wed,Thu,Fri,Sat,Sun"|split:"," %}<label><input type="checkbox" class="chk" name="wd" value="{{ forloop.counter0 }}"> {{ d }}</label>{% endfor %}</div></div>
+  <div class="grid g2"><div class="field"><label class="f">Action</label><select class="input" id="bMode"><option value="set">Set price to…</option><option value="percent">Change by %</option><option value="amount">Change by amount</option><option value="clear">Clear explicit prices</option><option value="none">Only change restrictions</option></select></div><div class="field"><label class="f">Value</label><input class="input" type="number" step="0.01" id="bVal"></div></div>
+  <div class="grid g2"><div class="field"><label class="f">Minimum stay (blank = unchanged)</label><input class="input" type="number" min="0" id="bMin"></div><div class="field"><label class="f">Restrictions</label><select class="input" id="bRestr"><option value="">Leave as is</option><option value="stop_on">Stop sell ON</option><option value="stop_off">Stop sell OFF</option><option value="cta_on">Closed to arrival ON</option><option value="cta_off">Closed to arrival OFF</option><option value="ctd_on">Closed to departure ON</option><option value="ctd_off">Closed to departure OFF</option></select></div></div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Apply</button></div></form></dialog>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var start = new Date('{{ start|date:"Y-m-d" }}T00:00:00'), days = 14, sel = null, data = null;
+  var iso = function (d) { var m = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd; };
+  async function load() { var r = await api('/api/staff/pricing/?start=' + iso(start) + '&days=' + days); if (!r.ok) { toast(r.error.message, 'error'); return; } data = r.data; render(); }
+  function render() {
+    var h = '<thead><tr><th>Date</th>' + data.types.map(function (t) { return '<th>' + t.name + '<div class="small muted" style="text-transform:none">base ' + money(t.base).replace('.00', '') + '</div></th>'; }).join('') + '</tr></thead><tbody>';
+    data.dates.forEach(function (d, i) { var dt = new Date(d + 'T00:00:00'), we = dt.getDay() === 0 || dt.getDay() === 6;
+      h += '<tr><td style="text-align:left;white-space:nowrap;' + (we ? 'font-weight:700' : '') + '">' + dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + '</td>';
+      data.types.forEach(function (t) { var c = t.cells[i], fl = [];
+        if (c.stop) fl.push('stop'); if (c.cta) fl.push('CTA'); if (c.ctd) fl.push('CTD'); if (c.min_stay) fl.push('min ' + c.min_stay); if (!c.explicit && c.rules.length) fl.push(c.rules.join('+'));
+        h += '<td class="pcell ' + (c.explicit ? 'explicit ' : '') + (c.stop ? 'stop' : '') + '" data-t="' + t.id + '" data-i="' + i + '"><div class="p">' + money(c.price).replace('.00', '') + '</div><div class="fl">' + (fl.join(' · ') || '&nbsp;') + '</div></td>'; });
+      h += '</tr>'; });
+    document.getElementById('grid').innerHTML = h + '</tbody>';
+  }
+  document.getElementById('grid').addEventListener('click', function (e) { var td = e.target.closest('.pcell'); if (!td) return; var t = data.types.filter(function (x) { return x.id == td.dataset.t; })[0], c = t.cells[td.dataset.i]; sel = { t: t.id, d: c.date };
+    document.getElementById('cellTitle').textContent = t.name + ' · ' + c.date; document.getElementById('cPrice').value = c.explicit ? c.price : ''; document.getElementById('cMin').value = c.min_stay || ''; document.getElementById('cCta').checked = c.cta; document.getElementById('cCtd').checked = c.ctd; document.getElementById('cStop').checked = c.stop; document.getElementById('dCell').showModal(); });
+  document.getElementById('cellForm').onsubmit = async function (e) { e.preventDefault(); var r = await api('/api/staff/pricing/update/', { body: { room_type: sel.t, date: sel.d, price: document.getElementById('cPrice').value, min_stay: document.getElementById('cMin').value, cta: document.getElementById('cCta').checked, ctd: document.getElementById('cCtd').checked, stop: document.getElementById('cStop').checked } });
+    if (r.ok) { document.getElementById('dCell').close(); toast('Saved.', 'success'); load(); } else toast(r.error.message, 'error'); };
+  document.getElementById('bulkForm').onsubmit = async function (e) { e.preventDefault(); var mode = document.getElementById('bMode').value, body = { start: document.getElementById('bFrom').value, end: document.getElementById('bTo').value,
+      room_types: Array.prototype.map.call(document.querySelectorAll('#bulkForm [name=rt]:checked'), function (x) { return x.value; }), weekdays: Array.prototype.map.call(document.querySelectorAll('#bulkForm [name=wd]:checked'), function (x) { return x.value; }), mode: mode === 'none' ? 'set' : mode, value: mode === 'none' ? '' : document.getElementById('bVal').value };
+    var mn = document.getElementById('bMin').value; if (mn !== '') body.min_stay = mn; var rs = document.getElementById('bRestr').value; if (rs) { var k = rs.split('_'); body[k[0]] = k[1] === 'on'; }
+    var r = await api('/api/staff/pricing/bulk/', { body: body }); if (r.ok) { document.getElementById('dBulk').close(); toast('Updated ' + r.data.changed + ' room-nights.', 'success'); load(); } else toast(r.error.message, 'error'); };
+  document.getElementById('prev').onclick = function () { start.setDate(start.getDate() - 14); load(); };
+  document.getElementById('next').onclick = function () { start.setDate(start.getDate() + 14); load(); };
+  document.getElementById('today').onclick = function () { start = new Date(); start.setHours(0, 0, 0, 0); load(); };
+  document.getElementById('bFrom').value = iso(start); document.getElementById('bTo').value = iso(new Date(start.getTime() + 13 * 86400000));
+  load();
+})();
+</script>
+{% endblock %}

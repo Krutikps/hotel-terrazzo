@@ -1,0 +1,82 @@
+{% extends "staff/base.html" %}{% load hms %}{% block title %}{{ res.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>{{ res.reference }} <span class="badge b-{{ res.status }}">{{ res.get_status_display }}</span> <span class="badge b-{{ res.payment_status }}">{{ res.get_payment_status_display }}</span></h1>
+  <p>{{ res.guest.name }} · {{ res.room_type.name }} · {{ res.check_in|date:"D j M" }} → {{ res.check_out|date:"D j M Y" }} ({{ res.nights }} night{{ res.nights|pluralize }}) · via {{ res.get_source_display }}</p></div>
+  <div class="btn-row">
+    {% if res.status == 'CONFIRMED' and res.check_in <= today %}<button class="btn primary" data-open="dCheckin">Check in</button>{% endif %}
+    {% if res.status == 'CHECKED_IN' %}<button class="btn primary" data-open="dCheckout">Check out</button>{% endif %}
+    {% if res.status == 'CONFIRMED' or res.status == 'CHECKED_IN' %}<a class="btn" href="{% url 'staff:reservation_edit' res.pk %}">Edit</a>{% endif %}
+    {% if res.balance > 0 and res.status == 'CONFIRMED' or res.balance > 0 and res.status == 'CHECKED_IN' or res.balance > 0 and res.status == 'CHECKED_OUT' %}<button class="btn" data-open="dPay">+ Payment</button>{% endif %}
+    {% if res.status == 'CONFIRMED' %}<button class="btn danger" data-open="dCancel">Cancel</button>{% endif %}
+    <a class="btn" href="{% url 'staff:res_print' res.pk %}" target="_blank">Print</a><a class="btn" href="{% url 'staff:res_pdf' res.pk %}" target="_blank">PDF</a>
+    {% if res.booking_number %}<form method="post" action="{% url 'staff:res_email' res.pk %}" style="display:inline">{% csrf_token %}<button class="btn">Email</button></form>{% endif %}
+    {% if res.status == 'CONFIRMED' or res.status == 'CHECKED_IN' or res.status == 'CHECKED_OUT' %}<form method="post" action="{% url 'staff:invoice_generate' res.pk %}" style="display:inline">{% csrf_token %}<button class="btn">Invoice</button></form>{% endif %}
+  </div></div>
+{% if res.status == 'PENDING_PAYMENT' %}<div class="card" style="border-color:var(--warn)">⏳ Guest is in checkout (payment hold until {{ res.hold_expires_at|date:"H:i:s" }}). The room is held; it will be released automatically if payment isn't completed.</div>{% endif %}
+
+<div class="cols-2-1">
+<div>
+  <div class="grid g2" style="margin-bottom:0">
+    <div class="card"><h2>Guest</h2><dl class="kv"><dt>Name</dt><dd><a href="{% url 'staff:guest' res.guest.pk %}">{{ res.guest.name }}</a></dd><dt>Phone</dt><dd><a href="tel:{{ res.guest.phone }}">{{ res.guest.phone|default:"—" }}</a></dd><dt>Email</dt><dd>{{ res.guest.email|default:"—" }}</dd>
+      <dt>Address</dt><dd>{{ res.guest.address }}{% if res.guest.city %}, {{ res.guest.city }}{% endif %} {{ res.guest.state }} {{ res.guest.postal_code }} {{ res.guest.country }}</dd><dt>ID</dt><dd>{{ res.guest.id_type|default:"—" }} {{ res.guest.id_number }}</dd>
+      {% if res.guest.preferences %}<dt>Preferences</dt><dd>{{ res.guest.preferences }}</dd>{% endif %}</dl></div>
+    <div class="card"><h2>Stay</h2><dl class="kv"><dt>Room type</dt><dd>{{ res.room_type.name }}{% if res.room_count > 1 %} × {{ res.room_count }}{% endif %}</dd><dt>Rate plan</dt><dd>{{ res.rate_plan.name }}</dd>
+      <dt>Check-in</dt><dd>{{ res.check_in|date:"D j M Y" }} <span class="muted">from {{ hotel.check_in_time|time:"H:i" }}</span></dd><dt>Check-out</dt><dd>{{ res.check_out|date:"D j M Y" }} <span class="muted">by {{ hotel.check_out_time|time:"H:i" }}</span></dd>
+      <dt>Nights</dt><dd>{{ res.nights }}</dd><dt>Guests</dt><dd>{{ res.adults }} adult{{ res.adults|pluralize }}, {{ res.children }} child{{ res.children|pluralize:"ren" }}</dd><dt>Booked</dt><dd>{{ res.created_at|date:"j M Y H:i" }}{% if res.created_by %} by {{ res.created_by.name }}{% endif %}</dd></dl></div>
+  </div>
+  <div style="height:16px"></div>
+  <div class="card"><div class="card-h"><h2>Financial</h2>{% if res.status == 'CONFIRMED' or res.status == 'CHECKED_IN' %}<button class="btn sm" data-open="dCharge">+ Add charge</button>{% endif %}</div>
+    {% for l in res.lines.all %}<div class="line"><span>{{ l.description }}{% if l.quantity != 1 %} <span class="muted small">× {{ l.quantity|floatformat:"-2" }}</span>{% endif %}</span><span class="mono" {% if l.amount < 0 %}style="color:var(--ok)"{% endif %}>{{ hotel.currency_symbol }}{{ l.amount|floatformat:2 }}</span></div>{% endfor %}
+    <div class="line"><span class="muted">Room tariff {{ hotel.currency_symbol }}{{ res.room_charges|floatformat:2 }} · extra guests {{ hotel.currency_symbol }}{{ res.extra_guest_charges|floatformat:2 }} · services {{ hotel.currency_symbol }}{{ res.service_charges|floatformat:2 }} · discounts −{{ hotel.currency_symbol }}{{ res.discount_total|floatformat:2 }} · taxes {{ hotel.currency_symbol }}{{ res.tax_total|floatformat:2 }}</span><span></span></div>
+    <div class="line total"><span>Total tariff</span><span class="mono">{{ hotel.currency_symbol }}{{ res.total|floatformat:2 }}</span></div>
+    <div class="line"><span>Paid</span><span class="mono" style="color:var(--ok)">{{ hotel.currency_symbol }}{{ res.amount_paid|floatformat:2 }}</span></div>
+    <div class="line"><span><b>Pending</b></span><span class="mono"><b {% if res.balance > 0 %}style="color:var(--bad)"{% endif %}>{{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }}</b></span></div></div>
+  <div class="card"><h2>Payments</h2>
+    {% if res.payments.all %}<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for p in res.payments.all %}<tr><td>{{ p.created_at|date:"j M H:i" }}</td><td>{% if p.kind == 'REFUND' %}↩ Refund · {% endif %}{{ p.get_method_display }}</td><td class="small">{{ p.transaction_id|default:p.provider_order_id }}{% if p.note %}<div class="muted">{{ p.note }}</div>{% endif %}</td>
+      <td class="num">{% if p.kind == 'REFUND' %}−{% endif %}{{ hotel.currency_symbol }}{{ p.amount|floatformat:2 }}</td><td><span class="badge b-{{ p.status }}">{{ p.get_status_display }}</span></td>
+      <td class="nowrap">{% if p.status == 'PAID' %}<a class="btn sm" href="{% url 'staff:receipt' p.pk %}" target="_blank">Receipt</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    {% if res.amount_paid > 0 %}<p class="small muted">Refunds are issued from <a href="{% url 'staff:payments' %}?q={{ res.reference }}">Payments</a>.</p>{% endif %}{% else %}<div class="empty">No payments yet.</div>{% endif %}</div>
+  <div class="card"><div class="card-h"><h2>Stay information</h2><button class="btn sm" data-open="dDetails">Edit</button></div>
+    <dl class="kv"><dt>Purpose of stay</dt><dd>{{ res.purpose|default:"—" }}</dd><dt>Arrival time</dt><dd>{{ res.arrival_time|default:"—" }}</dd><dt>Special requests</dt><dd>{{ res.special_requests|default:"—"|linebreaksbr }}</dd><dt>Internal notes</dt><dd>{{ res.internal_notes|default:"—"|linebreaksbr }}</dd><dt>Cancellation policy</dt><dd>{{ res.cancellation_policy }}</dd>
+      {% if res.cancellation_reason %}<dt>Cancelled</dt><dd>{{ res.cancelled_at|date:"j M Y H:i" }} — {{ res.cancellation_reason }}</dd>{% endif %}</dl>
+    <h3 style="margin-top:14px">Requested services</h3>
+    {% for q in res.requests.all %}<form method="post" action="{% url 'staff:res_toggle_request' res.pk q.pk %}" style="display:inline">{% csrf_token %}<button class="badge {% if q.fulfilled %}b-ok{% else %}b-warn{% endif %}" style="cursor:pointer;margin:2px">{% if q.fulfilled %}✓ {% endif %}{{ q.request_type }}{% if q.notes %}: {{ q.notes }}{% endif %}</button></form>{% empty %}<span class="muted">None.</span>{% endfor %}
+    <form method="post" action="{% url 'staff:res_add_request' res.pk %}" class="inline-form" style="margin-top:10px">{% csrf_token %}<div class="field"><select class="input" name="request_type">{% for t in request_types %}<option>{{ t }}</option>{% endfor %}</select></div><div class="field" style="flex:1"><input class="input" name="notes" placeholder="Notes (optional)"></div><button class="btn sm">Add</button></form>
+    <p class="small muted">Click a request to mark it fulfilled.</p></div>
+</div>
+<div>
+  <div class="card"><h2>Rooms</h2>
+    {% for rr in res.rooms.all %}<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>{{ rr.room_type.name }}</b> · {{ rr.adults }}A {{ rr.children }}C<br>
+      {% if rr.room %}<span class="badge b-info">Room {{ rr.room.room_number }}</span> <span class="small muted">{{ rr.room.get_status_display }}</span>{% else %}<span class="badge b-warn">Unassigned</span>{% endif %}
+      {% for k, qs in free_rooms.items %}{% if k == rr.id %}<form method="post" action="{% url 'staff:res_assign' res.pk %}" class="inline-form" style="margin-top:6px">{% csrf_token %}<input type="hidden" name="rr" value="{{ rr.id }}">
+        <select class="input" name="room" style="width:auto"><option value="">{% if rr.room %}Change room…{% else %}Assign room…{% endif %}</option>{% for r in qs %}<option value="{{ r.id }}" {% if rr.room_id == r.id %}disabled{% endif %}>{{ r.room_number }} · {{ r.get_status_display }}</option>{% endfor %}</select><button class="btn sm">Save</button></form>
+        {% if rr.room and res.status == 'CONFIRMED' %}<form method="post" action="{% url 'staff:res_unassign' res.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="rr" value="{{ rr.id }}"><button class="btn sm ghost">Unassign</button></form>{% endif %}{% endif %}{% endfor %}</div>{% endfor %}
+  </div>
+  <div class="card"><h2>History</h2><ul class="timeline">{% for h in history %}<li><b>{{ h.summary|default:h.action }}</b><div class="small muted">{{ h.created_at|date:"j M Y H:i" }} · {% if h.user %}{{ h.user.name }}{% else %}{{ h.actor_label|default:"System" }}{% endif %}</div>
+    {% if h.old_value and h.new_value %}<div class="small">{% for k, v in h.new_value.items %}{% if h.old_value|default_if_none:"" and k in h.old_value %}{{ k }}: <s class="muted">{{ h.old_value|get_item:k }}</s> → {{ v }}; {% endif %}{% endfor %}</div>{% endif %}</li>{% empty %}<li>No history yet.</li>{% endfor %}</ul></div>
+  <div class="card"><h2>Messages</h2>{% for n in notifs %}<div class="small" style="padding:4px 0;border-bottom:1px solid var(--line)"><span class="badge b-{{ n.status }}">{{ n.status }}</span> {{ n.channel }} · {{ n.subject }}<div class="muted">{{ n.created_at|date:"j M H:i" }}</div></div>{% empty %}<div class="muted small">None sent.</div>{% endfor %}</div>
+</div>
+</div>
+
+<dialog id="dPay"><form method="post" action="{% url 'staff:res_add_payment' res.pk %}">{% csrf_token %}<div class="dh">Record payment <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Amount (balance {{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }})</label><input class="input" type="number" step="0.01" min="0.01" max="{{ res.balance }}" name="amount" value="{{ res.balance|floatformat:2 }}" required></div>
+  <div class="field"><label class="f">Method</label><select class="input" name="method">{% for k, v in methods %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label class="f">Reference / transaction ID</label><input class="input" name="reference"></div><div class="field"><label class="f">Note</label><input class="input" name="note"></div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Record payment</button></div></form></dialog>
+<dialog id="dCharge"><form method="post" action="{% url 'staff:res_add_charge' res.pk %}">{% csrf_token %}<div class="dh">Add charge <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Category</label><select class="input" name="category">{% for k, v in charge_cats %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label class="f">Description</label><input class="input" name="description" required placeholder="e.g. Minibar – 2 soft drinks"></div><div class="field"><label class="f">Amount (before tax)</label><input class="input" type="number" step="0.01" min="0.01" name="amount" required></div>
+  <label><input type="checkbox" class="chk" name="taxable" checked> Add service tax</label></div><div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Add charge</button></div></form></dialog>
+<dialog id="dCancel"><form method="post" action="{% url 'staff:res_cancel' res.pk %}">{% csrf_token %}<div class="dh">Cancel booking <button type="button" data-close>×</button></div><div class="db">
+  <p>Policy: {{ res.cancellation_policy }}</p><p>Cancelling now: charge <b>{{ hotel.currency_symbol }}{{ fee|floatformat:2 }}</b>, refund <b>{{ hotel.currency_symbol }}{{ refund|floatformat:2 }}</b> (of {{ hotel.currency_symbol }}{{ res.amount_paid|floatformat:2 }} paid).</p>
+  <div class="field"><label class="f">Reason</label><input class="input" name="reason" required></div>{% if request.user|can:"payments.refund" %}<label><input type="checkbox" class="chk" name="waive_fee"> Waive cancellation charge</label>{% endif %}</div>
+  <div class="df"><button type="button" class="btn" data-close>Keep booking</button><button class="btn danger">Cancel booking</button></div></form></dialog>
+<dialog id="dDetails"><form method="post" action="{% url 'staff:res_details' res.pk %}">{% csrf_token %}<div class="dh">Stay information <button type="button" data-close>×</button></div><div class="db">
+  <div class="field"><label class="f">Purpose of stay</label><input class="input" list="purposes" name="purpose" value="{{ res.purpose }}"><datalist id="purposes">{% for p in purposes %}<option>{{ p }}</option>{% endfor %}</datalist></div>
+  <div class="field"><label class="f">Expected arrival time</label><input class="input" name="arrival_time" value="{{ res.arrival_time }}"></div><div class="field"><label class="f">Source</label><select class="input" name="source">{% for k, v in sources %}<option value="{{ k }}" {% if res.source == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label class="f">Guest special requests</label><textarea class="input" name="special_requests">{{ res.special_requests }}</textarea></div><div class="field"><label class="f">Internal notes (not visible to guest)</label><textarea class="input" name="internal_notes">{{ res.internal_notes }}</textarea></div></div>
+  <div class="df"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Save</button></div></form></dialog>
+{% include "staff/_checkin_dialog.html" %}
+{% include "staff/_checkout_dialog.html" %}
+{% endblock %}

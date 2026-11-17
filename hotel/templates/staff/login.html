@@ -1,0 +1,13 @@
+{% load static %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Staff sign in · {{ hotel.name }}</title><meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"><link rel="stylesheet" href="{% static 'css/staff.css' %}"></head>
+<body><div class="login-wrap"><form class="login-card" method="post" novalidate>{% csrf_token %}
+  <img class="lg" src="{% static 'brand/logo-mark.png' %}" alt="{{ hotel.name }}">
+  <h1 style="text-align:center">Staff sign in</h1><p class="muted">Hotel management portal</p>
+  {% if error %}<div class="toast error" style="margin-bottom:12px">{{ error }}</div>{% endif %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="field"><label class="f" for="email">Email</label><input class="input" id="email" type="email" name="email" autocomplete="username" required autofocus></div>
+  <div class="field"><label class="f" for="pw">Password</label><input class="input" id="pw" type="password" name="password" autocomplete="current-password" required></div>
+  <button class="btn primary" style="width:100%;justify-content:center">Sign in</button>
+  <p class="small" style="text-align:center;margin-top:14px"><a href="{% url 'staff:password_reset' %}">Forgot password?</a> · <a href="/">Guest website</a></p>
+</form></div></body></html>

@@ -1,0 +1,70 @@
+{% load static %}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Portal{% endblock %} · {{ hotel.name|default:"HMS" }}</title>
+  <meta name="robots" content="noindex, nofollow"><link rel="icon" type="image/png" href="{% static 'brand/logo-mark.png' %}">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&display=swap">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/staff.css' %}">
+  <script>try{var t=localStorage.getItem('hms-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="layout">
+  <aside class="side" id="side">
+    <a href="/staff/" class="brand" style="color:#fff"><img class="logo-img" src="{% static 'brand/logo-mark.png' %}" alt=""><span class="bn">Hotel Terrazzo<small>Staff portal</small></span></a>
+    {% for section, items in nav %}<h4>{{ section }}</h4>{% for label, url, on in items %}<a href="{{ url }}" class="{% if on %}on{% endif %}">{{ label }}</a>{% endfor %}{% endfor %}
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="btn sm menu-btn" onclick="document.getElementById('side').classList.toggle('open')" aria-label="Menu">☰</button>
+      <form class="search hide-sm" action="{% url 'staff:reservations' %}" method="get"><input type="hidden" name="view" value="all"><input class="input" name="q" placeholder="Search bookings, guests, phone, room…" value="{{ request.GET.q }}"></form>
+      <span class="grow"></span>
+      <span class="pill-live hide-sm" title="Live updates every few seconds"><i></i> Live</span>
+      <a class="bell btn sm ghost" href="{% url 'staff:notifications' %}" title="Notifications">🔔{% if unread_count %}<span class="n" id="bellN">{{ unread_count }}</span>{% else %}<span class="n" id="bellN" hidden>0</span>{% endif %}</a>
+      <button class="btn sm ghost" id="themeBtn" title="Toggle dark mode">◐</button>
+      <span class="small hide-sm">{{ request.user.name }} · <span class="muted">{{ request.user.role.name|default:"Admin" }}</span></span>
+      <form method="post" action="{% url 'staff:logout' %}">{% csrf_token %}<button class="btn sm">Sign out</button></form>
+    </header>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<div class="toasts" id="toasts">
+  {% for m in messages %}<div class="toast {{ m.tags }}" role="status"><span>{{ m }}</span><button onclick="this.parentNode.remove()">×</button></div>{% endfor %}
+</div>
+<script>
+  window.CSRF = "{{ csrf_token }}";
+  window.toast = function (msg, kind) { var d = document.createElement('div'); d.className = 'toast ' + (kind || 'info'); d.innerHTML = '<span></span><button onclick="this.parentNode.remove()">×</button>'; d.firstChild.textContent = msg; document.getElementById('toasts').appendChild(d); setTimeout(function(){ d.remove(); }, 7000); };
+  setTimeout(function () { document.querySelectorAll('#toasts .toast').forEach(function (t) { t.remove(); }); }, 9000);
+  window.api = async function (url, opts) {
+    opts = opts || {}; var init = { method: opts.method || 'GET', headers: { 'X-CSRFToken': window.CSRF, 'Accept': 'application/json' }, credentials: 'same-origin' };
+    if (opts.body !== undefined) { init.method = opts.method || 'POST'; init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
+    var r; try { r = await fetch(url, init); } catch (e) { return { ok: false, error: { message: 'Network problem. Please check your connection and try again.' } }; }
+    try { return await r.json(); } catch (e) { return { ok: false, error: { message: 'Unexpected response from the server.' } }; }
+  };
+  window.money = function (v) { return '{{ currency_symbol }}' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  document.getElementById('themeBtn').onclick = function () { var d = document.documentElement; var n = d.dataset.theme === 'dark' ? 'light' : 'dark'; d.dataset.theme = n; try { localStorage.setItem('hms-theme', n); } catch (e) {} };
+  document.querySelectorAll('dialog [data-close]').forEach(function (b) { b.onclick = function () { b.closest('dialog').close(); }; });
+  document.addEventListener('click', function (e) { var t = e.target.closest('[data-open]'); if (t) { var dlg = document.getElementById(t.dataset.open); if (t.dataset.fill) { try { var d = JSON.parse(t.dataset.fill); Object.keys(d).forEach(function (k) { var el = dlg.querySelector('[data-f="' + k + '"]'); if (!el) return; if (el.tagName === 'FORM' || el.dataset.attr === 'action') { el.setAttribute('action', d[k]); } else if ('value' in el && el.tagName !== 'SPAN' && el.tagName !== 'DIV' && el.tagName !== 'B') { el.value = d[k]; } else { el.textContent = d[k]; } }); } catch (x) {} } dlg.showModal(); } var row = e.target.closest('tr[data-href]'); if (row && !e.target.closest('a,button,input,select,form')) { location.href = row.dataset.href; } });
+  document.querySelectorAll('form[data-confirm]').forEach(function (f) { f.addEventListener('submit', function (e) { if (!confirm(f.dataset.confirm)) e.preventDefault(); }); });
+  /* near-real-time sync: poll a light endpoint; refresh data screens when something changed */
+  (function () {
+    var last = null, busy = false; var live = {{ live|default:"true" }};
+    async function tick() {
+      if (busy || document.hidden) return; busy = true;
+      var r = await window.api('/api/staff/pulse/'); busy = false; if (!r.ok) return;
+      var n = r.data.unread, b = document.getElementById('bellN'); if (b) { b.textContent = n; b.hidden = !n; }
+      if (last !== null && r.data.version !== last) { window.dispatchEvent(new CustomEvent('hms:changed', { detail: r.data })); if (r.data.latest && r.data.latest[0]) window.toast(r.data.latest[0].subject, 'info'); if (window.__autoRefresh) { window.__autoRefresh(); } }
+      last = r.data.version;
+    }
+    setInterval(tick, 8000); tick();
+  })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

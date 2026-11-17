@@ -1,0 +1,9 @@
+{% extends "staff/base.html" %}{% block title %}Room blocks{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Room blocks</h1><p>Rooms taken out of sale for date ranges (renovation, owner use, cleaning…).</p></div>{% if can_block %}<button class="btn primary" data-open="dBlock">+ Block a room</button>{% endif %}</div>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Room</th><th>Type</th><th>From</th><th>To (inclusive)</th><th>Reason</th><th>Notes</th><th>By</th><th></th></tr></thead><tbody>
+{% for b in active %}<tr><td data-label="Room"><b>{{ b.room.room_number }}</b></td><td data-label="Type">{{ b.room.room_type.name }}</td><td data-label="From">{{ b.start_date|date:"D j M Y" }}</td><td data-label="To">{{ b.end_date|date:"D j M Y" }}</td><td data-label="Reason"><span class="badge b-BLOCKED">{{ b.get_reason_display }}</span></td><td data-label="Notes">{{ b.notes|default:"—" }}</td><td data-label="By">{{ b.created_by.name|default:"—" }}</td>
+<td>{% if can_block %}<form method="post" action="{% url 'staff:block_release' b.pk %}" data-confirm="Release this block? The room returns to guest availability.">{% csrf_token %}<button class="btn sm">Unblock</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="8" class="empty">No active blocks.</td></tr>{% endfor %}</tbody></table></div></div>
+{% if past %}<div class="card"><h2>Recently released</h2>{% for b in past %}<div class="small muted">Room {{ b.room.room_number }} · {{ b.start_date|date:"j M" }}–{{ b.end_date|date:"j M Y" }} · {{ b.get_reason_display }} · released {{ b.released_at|date:"j M H:i" }}</div>{% endfor %}</div>{% endif %}
+{% include "staff/_block_dialog.html" with block_form=form %}
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "staff/base.html" %}{% block title %}Edit {{ res.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Edit {{ res.reference }}</h1><p>{{ res.guest.name }} · changes re-check availability and re-price the whole stay.</p></div><a class="btn" href="{% url 'staff:reservation' res.pk %}">← Back</a></div>
+<div x-data="edit()" x-cloak class="cols-2-1">
+  <div class="card"><div class="toast error" x-show="error" style="margin-bottom:12px" x-text="error"></div>
+    <div class="grid g2"><div class="field"><label class="f">Check-in</label><input class="input" type="date" x-model="f.check_in" @change="preview()" {% if res.status == 'CHECKED_IN' %}disabled{% endif %}></div><div class="field"><label class="f">Check-out</label><input class="input" type="date" x-model="f.check_out" @change="preview()"></div>
+      <div class="field"><label class="f">Adults</label><input class="input" type="number" min="1" x-model.number="f.adults" @change="preview()"></div><div class="field"><label class="f">Children</label><input class="input" type="number" min="0" x-model.number="f.children" @change="preview()"></div>
+      <div class="field"><label class="f">Rooms</label><input class="input" type="number" min="1" x-model.number="f.rooms" @change="preview()" {% if res.status == 'CHECKED_IN' %}disabled{% endif %}></div>
+      <div class="field"><label class="f">Room type</label><select class="input" x-model.number="f.room_type" @change="typeChanged()" {% if res.status == 'CHECKED_IN' %}disabled{% endif %}>{% for t in room_types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label class="f">Rate plan</label><select class="input" x-model.number="f.rate_plan" @change="preview()"><template x-for="p in plans.filter(function(p){return p.type==f.room_type})" :key="p.id"><option :value="p.id" x-text="p.name"></option></template></select></div></div>
+    <div class="btn-row"><button class="btn primary" @click="apply()" :disabled="loading || !q">Save changes</button><a class="btn" href="{% url 'staff:reservation' res.pk %}">Cancel</a></div>
+    <p class="small muted" style="margin-top:10px">Assigned rooms are kept when they remain valid for the new dates/type; otherwise they are unassigned and must be reassigned.</p></div>
+  <div class="card"><h2>New price</h2><template x-if="q"><div><template x-for="l in q.quote.lines"><div class="line"><span x-text="l.description"></span><span class="mono" x-text="money(l.amount)"></span></div></template>
+    <template x-for="t in q.quote.tax_lines"><div class="line"><span x-text="t.name + ' @ ' + t.rate + '%'"></span><span class="mono" x-text="money(t.amount)"></span></div></template>
+    <div class="line total"><span>New total</span><span class="mono" x-text="money(q.quote.total)"></span></div><div class="line"><span>Previously</span><span class="mono" x-text="money(q.old_total)"></span></div><div class="line"><span>Paid so far</span><span class="mono" x-text="money(q.paid)"></span></div>
+    <div class="line"><b>New balance</b><b class="mono" x-text="money(Math.max(q.quote.total - q.paid, 0))"></b></div></div></template><div class="muted" x-show="!q && !error">Change a field to see the new price.</div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function edit() {
+  var plans = [{% for p in plans %}{ id: {{ p.id }}, type: {{ p.room_type_id }}, name: "{{ p.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
+  return { loading: false, error: '', q: null, plans: plans, money: window.money,
+    f: { check_in: '{{ res.check_in|date:"Y-m-d" }}', check_out: '{{ res.check_out|date:"Y-m-d" }}', adults: {{ res.adults }}, children: {{ res.children }}, rooms: {{ res.room_count }}, room_type: {{ res.room_type_id }}, rate_plan: {{ res.rate_plan_id }} },
+    typeChanged: function () { var p = this.plans.filter(function (x) { return x.type == this.f.room_type; }.bind(this)); if (!p.some(function (x) { return x.id == this.f.rate_plan; }.bind(this))) this.f.rate_plan = p.length ? p[0].id : null; this.preview(); },
+    preview: async function () { this.error = ''; this.q = null; var r = await api('/api/staff/reservations/{{ res.pk }}/modify/', { body: Object.assign({ preview: true }, this.f) }); if (!r.ok) { this.error = r.error.message; return; } this.q = r.data; this.f.rate_plan = r.data.plan_id; },
+    apply: async function () { this.loading = true; var r = await api('/api/staff/reservations/{{ res.pk }}/modify/', { body: this.f }); this.loading = false; if (!r.ok) { this.error = r.error.message; return; } toast('Booking updated.', 'success'); location.href = '/staff/reservations/{{ res.pk }}/'; } };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+<form class="search" method="get" action="{% url 'guest:availability' %}" x-data="{ci:'{{ search.check_in }}', co:'{{ search.check_out }}', today: new Date().toISOString().slice(0,10),
+    fix() { if (this.co <= this.ci) { var d = new Date(this.ci + 'T00:00:00'); d.setDate(d.getDate() + 1); this.co = d.toISOString().slice(0,10); } }}">
+  <div class="f"><label for="ci">Check-in</label><input class="input" id="ci" type="date" name="check_in" x-model="ci" :min="today" @change="fix()" required></div>
+  <div class="f"><label for="co">Check-out</label><input class="input" id="co" type="date" name="check_out" x-model="co" :min="ci" required></div>
+  <div class="f"><label for="ad">Adults</label><select class="input" id="ad" name="adults">{% for n in "123456789"|make_list %}<option value="{{ n }}" {% if search.adults == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="ch">Children</label><select class="input" id="ch" name="children">{% for n in "012345"|make_list %}<option value="{{ n }}" {% if search.children == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="rm">Rooms</label><select class="input" id="rm" name="rooms">{% for n in "12345"|make_list %}<option value="{{ n }}" {% if search.rooms == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <button class="btn primary go">Search availability</button>
+</form>

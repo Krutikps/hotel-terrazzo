@@ -1,0 +1,21 @@
+{% extends "staff/base.html" %}{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Settings</h1><p>Hotel profile, booking rules, taxes, payments and notifications.</p></div></div>
+<form method="post" enctype="multipart/form-data" x-data="{tab:'hotel'}">{% csrf_token %}
+{% if form.errors %}<div class="toast error" style="margin-bottom:12px">Please fix the highlighted fields. {{ form.non_field_errors }}</div>{% endif %}
+<div class="tabs">{% for k, l in tabs %}{% endfor %}<a href="#" :class="{on: tab=='hotel'}" @click.prevent="tab='hotel'">Hotel</a><a href="#" :class="{on: tab=='booking'}" @click.prevent="tab='booking'">Booking</a><a href="#" :class="{on: tab=='taxes'}" @click.prevent="tab='taxes'">Taxes</a><a href="#" :class="{on: tab=='payment'}" @click.prevent="tab='payment'">Payment</a><a href="#" :class="{on: tab=='notify'}" @click.prevent="tab='notify'">Notifications</a></div>
+<div class="card" x-show="tab=='hotel'"><div class="form-grid">{% for f in form %}{% if f.name in 'name tagline address city state country postal_code phone email website gstin timezone currency currency_symbol logo logo_url hero_image_url' %}{% include "staff/_field.html" %}{% endif %}{% endfor %}</div>
+  <div class="field"><label class="f">Description (homepage)</label>{{ form.description }}</div></div>
+<div class="card" x-show="tab=='booking'" x-cloak><div class="form-grid">{% for f in form %}{% if f.name in 'check_in_time check_out_time booking_prefix hold_minutes online_payment_percent max_rooms_per_booking max_advance_days allow_guest_cancellation require_id_online' %}{% include "staff/_field.html" %}{% endif %}{% endfor %}</div>
+  <p class="help">Cancellation rules are set per rate plan (free-cancellation window and late-cancellation charge) under <a href="{% url 'staff:crud_list' 'rateplans' %}">Rate plans</a>.</p></div>
+<div class="card" x-show="tab=='taxes'" x-cloak><div class="card-h"><h2>Tax rules</h2><a class="btn sm" href="{% url 'staff:crud_new' 'taxes' %}">+ Add tax rule</a></div>
+  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Rate</th><th>Applies to</th><th>Slab (per room-night)</th><th>Active</th><th></th></tr></thead><tbody>{% for t in tax_rules %}<tr><td>{{ t.name }}</td><td>{{ t.rate }}%</td><td>{{ t.get_applies_to_display }}</td><td>{% if t.applies_to == 'ROOM' %}{{ t.min_amount }} &lt; amount ≤ {{ t.max_amount|default:"∞" }}{% else %}—{% endif %}</td><td>{{ t.active|yesno:"Yes,No" }}</td><td><a class="btn sm" href="{% url 'staff:crud_edit' 'taxes' t.pk %}">Edit</a></td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card" x-show="tab=='payment'" x-cloak><h2>Payment provider</h2>{% include "staff/_field.html" with f=form.payment_provider %}
+  <p class="help">Choose <b>razorpay</b> for live/test card & UPI payments, or <b>mock</b> for the built-in sandbox gateway (development only — it is blocked when <code>DEBUG</code> is off unless <code>ALLOW_MOCK_PAYMENTS=true</code>).</p>
+  <dl class="kv"><dt>Razorpay keys</dt><dd>{% if env.razorpay %}<span class="badge b-ok">configured in environment</span>{% else %}<span class="badge b-warn">not set — add RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to .env</span>{% endif %}</dd>
+  <dt>Webhook secret</dt><dd>{% if env.webhook %}<span class="badge b-ok">configured</span>{% else %}<span class="badge b-warn">not set (RAZORPAY_WEBHOOK_SECRET)</span>{% endif %}</dd><dt>Webhook URL</dt><dd><code>{{ env.site_url }}/api/payments/webhook/razorpay/</code></dd></dl>
+  <p class="help">Secrets are read from environment variables only — they are never stored in the database or shown here.</p></div>
+<div class="card" x-show="tab=='notify'" x-cloak><h2>Notification channels</h2><div class="form-grid">{% for f in form %}{% if f.name in 'notify_email notify_sms notify_whatsapp admin_notification_email' %}{% include "staff/_field.html" %}{% endif %}{% endfor %}</div>
+  <dl class="kv"><dt>Email backend</dt><dd>{{ env.email }}</dd><dt>Twilio (SMS/WhatsApp)</dt><dd>{% if env.twilio %}<span class="badge b-ok">credentials set</span>{% else %}<span class="badge b-warn">not set — SMS/WhatsApp are logged as skipped</span>{% endif %}</dd></dl></div>
+<button class="btn primary">Save settings</button></form>
+{% endblock %}

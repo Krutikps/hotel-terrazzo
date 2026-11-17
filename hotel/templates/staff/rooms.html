@@ -1,0 +1,19 @@
+{% extends "staff/base.html" %}{% block title %}Rooms{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Rooms</h1><p>Live status of every physical room (as of today).</p></div>
+  <div class="btn-row">{% if can_block %}<button class="btn" data-open="dBlock">Block room</button>{% endif %}{% if can_manage %}<a class="btn primary" href="{% url 'staff:room_new' %}">+ Add room</a>{% endif %}</div></div>
+<form class="filters" method="get">
+  <div><label class="f">Room number</label><input class="input" name="q" value="{{ f.q }}" style="width:110px"></div>
+  <div><label class="f">Room type</label><select class="input" name="type"><option value="">All</option>{% for t in room_types %}<option value="{{ t.id }}" {% if f.type == t.id|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+  <div><label class="f">Floor</label><select class="input" name="floor"><option value="">All</option>{% for x in floors %}<option value="{{ x }}" {% if f.floor == x|stringformat:"s" %}selected{% endif %}>{{ x }}</option>{% endfor %}</select></div>
+  <div><label class="f">Today's state</label><select class="input" name="effective"><option value="">Any</option>{% for k, v in statuses %}<option value="{{ k }}" {% if f.effective == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div><button class="btn primary">Filter</button> <a class="btn ghost" href="{% url 'staff:rooms' %}">Reset</a></div></form>
+<div class="card" style="padding:0"><div class="tbl-wrap"><table class="tbl stack"><thead><tr><th>Room</th><th>Type</th><th>Floor</th><th>Today</th><th>Housekeeping / base status</th><th>Current guest</th><th></th></tr></thead><tbody>
+{% for x in rows %}{% with r=x.room %}<tr><td data-label="Room"><b>{{ r.room_number }}</b>{% if not r.active %} <span class="badge">inactive</span>{% endif %}</td><td data-label="Type">{{ r.room_type.name }}</td><td data-label="Floor">{{ r.floor }}</td>
+<td data-label="Today"><span class="badge b-{{ x.state }}">{{ x.state|title }}</span></td>
+<td data-label="Status">{% if can_status %}<form method="post" action="{% url 'staff:room_status' r.pk %}" class="inline-form">{% csrf_token %}<select class="input" name="status" style="width:auto;padding:3px 6px" onchange="this.form.submit()">{% for k, v in statuses %}<option value="{{ k }}" {% if r.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></form>{% else %}{{ r.get_status_display }}{% endif %}</td>
+<td data-label="Guest">{% if x.stay %}<a href="{% url 'staff:reservation' x.stay.pk %}">{{ x.stay.guest.name }}</a> <span class="small muted">until {{ x.stay.check_out|date:"j M" }}</span>{% else %}—{% endif %}</td>
+<td class="nowrap">{% if can_manage %}<a class="btn sm" href="{% url 'staff:room_edit' r.pk %}">Edit</a> {% endif %}{% if can_block %}<button class="btn sm" data-open="dBlock" data-fill='{"room":"{{ r.pk }}"}'>Block</button>{% endif %}</td></tr>{% endwith %}
+{% empty %}<tr><td colspan="7" class="empty">No rooms match.</td></tr>{% endfor %}</tbody></table></div></div>
+{% include "staff/_block_dialog.html" %}
+{% endblock %}

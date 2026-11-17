@@ -1,0 +1,16 @@
+{% extends "guest/base.html" %}{% block title %}Sandbox payment gateway{% endblock %}
+{% block content %}
+<section class="section"><div class="wrap" style="max-width:520px" x-data="mock()" x-cloak>
+  <div class="card"><div class="body"><span class="tag warn">SANDBOX GATEWAY — no real money moves</span><h2 style="margin-top:12px">Pay {{ hotel.currency_symbol }}{{ pay.amount|floatformat:2 }}</h2>
+    <p class="muted">{{ hotel.name }} · booking for {{ res.guest.name }}. This stands in for Razorpay while developing. The result is signed and verified by the server, exactly like a real gateway callback.</p>
+    <div class="alert bad" x-show="error" x-text="error"></div>
+    <button class="btn primary block" @click="go('success')" :disabled="busy">Simulate successful payment</button>
+    <button class="btn block" style="margin-top:10px" @click="go('fail')" :disabled="busy">Simulate declined payment</button>
+    <p class="small muted" style="margin-top:14px"><a href="{% url 'guest:pay' res.access_token %}">← Back to booking</a></p></div></div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script>
+function mock() { return { busy: false, error: '', go: async function (result) { this.busy = true; var r = await api('/api/payments/mock/{{ pay.provider_order_id }}/result/', { result: result }); this.busy = false;
+  if (!r.ok) { this.error = r.error.message; return; }
+  location.href = (r.data.outcome === 'confirmed' || r.data.outcome === 'already_paid') ? '{% url "guest:confirmation" res.access_token %}' : '{% url "guest:pay" res.access_token %}'; } }; }
+</script>{% endblock %}

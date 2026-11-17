@@ -1,0 +1,8 @@
+{% extends "staff/base.html" %}{% block title %}Receipt{% endblock %}
+{% block content %}
+<div class="page-head no-print"><div class="grow"><h1>Payment receipt</h1></div><button class="btn primary" onclick="window.print()">Print</button></div>
+<div class="card" style="max-width:640px"><h2 style="font-size:20px">{{ hotel.name }}</h2><p class="muted small">{{ hotel.address }}, {{ hotel.city }} {{ hotel.postal_code }} · {{ hotel.phone }}{% if hotel.gstin %} · GSTIN {{ hotel.gstin }}{% endif %}</p><hr>
+<dl class="kv"><dt>Receipt for</dt><dd>{% if p.kind == 'REFUND' %}Refund{% else %}Payment{% endif %} #{{ p.pk }}</dd><dt>Booking</dt><dd>{{ res.reference }}</dd><dt>Guest</dt><dd>{{ res.guest.name }}</dd><dt>Date</dt><dd>{{ p.created_at|date:"j M Y H:i" }}</dd><dt>Method</dt><dd>{{ p.get_method_display }}</dd><dt>Reference</dt><dd>{{ p.transaction_id|default:p.provider_payment_id|default:"—" }}</dd>
+<dt>Amount</dt><dd style="font-size:20px"><b>{{ hotel.currency_symbol }}{{ p.amount|floatformat:2 }}</b></dd><dt>Booking total</dt><dd>{{ hotel.currency_symbol }}{{ res.total|floatformat:2 }}</dd><dt>Paid to date</dt><dd>{{ hotel.currency_symbol }}{{ res.amount_paid|floatformat:2 }}</dd><dt>Balance</dt><dd>{{ hotel.currency_symbol }}{{ res.balance|floatformat:2 }}</dd></dl>
+<p class="small muted">Thank you for staying with us.</p></div>
+{% endblock %}

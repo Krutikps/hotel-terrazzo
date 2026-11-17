@@ -1,0 +1,67 @@
+{% extends "staff/base.html" %}{% block title %}New booking{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>New booking</h1><p>Walk-in, phone, email or corporate booking — availability is checked live against the database.</p></div></div>
+<div x-data="wiz()" x-init="init()" x-cloak>
+  <div class="wizard-steps"><span :class="{on: step==1}">1 · Dates & guests</span><span :class="{on: step==2}">2 · Room & rate</span><span :class="{on: step==3}">3 · Guest details</span><span :class="{on: step==4}">4 · Price & payment</span></div>
+  <div class="toast error" x-show="error" style="margin-bottom:12px" x-text="error"></div>
+
+  <div class="card" x-show="step==1"><form @submit.prevent="search()"><div class="grid g5">
+    <div class="field"><label class="f">Check-in</label><input class="input" type="date" x-model="s.check_in" required></div><div class="field"><label class="f">Check-out</label><input class="input" type="date" x-model="s.check_out" required></div>
+    <div class="field"><label class="f">Adults</label><input class="input" type="number" min="1" max="30" x-model.number="s.adults"></div><div class="field"><label class="f">Children</label><input class="input" type="number" min="0" max="30" x-model.number="s.children"></div><div class="field"><label class="f">Rooms</label><input class="input" type="number" min="1" max="20" x-model.number="s.rooms"></div></div>
+    <div class="grid g2"><div class="field"><label class="f">Booking source</label><select class="input" x-model="source">{% for k, v in sources %}<option value="{{ k }}" {% if k == 'WALK_IN' %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div></div>
+    <button class="btn primary" :disabled="loading"><span x-text="loading ? 'Checking…' : 'Check availability'"></span></button></form></div>
+
+  <div x-show="step==2"><div class="btn-row" style="margin-bottom:10px"><button class="btn" @click="step=1">← Change dates</button><span class="muted" x-text="nights + ' night(s) · ' + s.adults + ' adults, ' + s.children + ' children · ' + s.rooms + ' room(s)'"></span></div>
+    <div class="card empty" x-show="results.length==0">No rooms available for the selected dates.</div>
+    <template x-for="rt in results" :key="rt.id"><div class="card"><div class="card-h"><h2 x-text="rt.name"></h2><span class="badge b-ok" x-text="rt.available + ' available'"></span></div>
+      <div class="small muted" x-text="rt.bed_type + ' · ' + rt.size_sqft + ' sq ft · up to ' + rt.max_occupancy + ' guests'"></div>
+      <template x-for="p in rt.plans" :key="p.id"><div class="opt" :class="{sel: sel.plan && sel.plan.id==p.id}"><div><b x-text="p.name"></b> <span class="muted small" x-text="p.description"></span><div class="small muted" x-text="p.cancellation"></div></div>
+        <div class="right"><div><b x-text="money(p.quote.total)"></b> <span class="small muted" x-text="'(' + money(p.quote.avg_nightly) + '/night + tax & extras)'"></span></div><button class="btn sm primary" @click="pick(rt, p)">Select</button></div></div></template></div></template></div>
+
+  <div x-show="step==3"><div class="cols-2-1"><div>
+    <div class="card"><h2>Guest</h2><div class="form-grid">
+      <div class="field"><label class="f">First name *</label><input class="input" x-model="guest.first_name"></div><div class="field"><label class="f">Last name</label><input class="input" x-model="guest.last_name"></div>
+      <div class="field"><label class="f">Phone</label><input class="input" x-model="guest.phone"></div><div class="field"><label class="f">Email</label><input class="input" type="email" x-model="guest.email"></div>
+      <div class="field"><label class="f">Address</label><input class="input" x-model="guest.address"></div><div class="field"><label class="f">City</label><input class="input" x-model="guest.city"></div><div class="field"><label class="f">State</label><input class="input" x-model="guest.state"></div><div class="field"><label class="f">Country</label><input class="input" x-model="guest.country"></div><div class="field"><label class="f">Postal code</label><input class="input" x-model="guest.postal_code"></div>
+      <div class="field"><label class="f">ID type</label><select class="input" x-model="guest.id_type"><option value="">—</option><option>Aadhaar</option><option>Passport</option><option>Driving licence</option><option>Voter ID</option><option>Other</option></select></div><div class="field"><label class="f">ID number</label><input class="input" x-model="guest.id_number"></div></div></div>
+    <div class="card"><h2>Stay information</h2><div class="form-grid"><div class="field"><label class="f">Purpose of stay</label><input class="input" list="purp" x-model="purpose"><datalist id="purp">{% for p in purposes %}<option>{{ p }}</option>{% endfor %}</datalist></div><div class="field"><label class="f">Expected arrival time</label><input class="input" x-model="arrival_time" placeholder="e.g. 3 PM"></div></div>
+      <label class="f">Special requests</label><div class="btn-row" style="margin-bottom:10px">{% for t in request_types %}<label class="badge" style="cursor:pointer"><input type="checkbox" class="chk" value="{{ t }}" x-model="request_types"> {{ t }}</label>{% endfor %}</div>
+      <div class="field"><textarea class="input" x-model="special_requests" placeholder="Other requests…"></textarea></div><div class="field"><label class="f">Internal notes</label><textarea class="input" x-model="internal_notes"></textarea></div></div></div>
+    <div><div class="card"><h2>Extras</h2>{% for s in services %}<label style="display:flex;gap:8px;margin-bottom:6px"><input type="checkbox" class="chk" value="{{ s.id }}" x-model="services"> {{ s.name }} <span class="muted small">({{ hotel.currency_symbol }}{{ s.price|floatformat:0 }} {{ s.get_charge_type_display|lower }})</span></label>{% endfor %}
+      <div class="field" style="margin-top:10px"><label class="f">Coupon code</label><input class="input" x-model="coupon" style="text-transform:uppercase"></div></div>
+      <div class="btn-row"><button class="btn" @click="step=2">← Back</button><button class="btn primary" @click="toPrice()">Review price →</button></div></div></div></div>
+
+  <div x-show="step==4" class="cols-2-1"><div class="card"><h2>Price summary</h2><template x-if="quote"><div>
+      <div class="small muted" x-text="sel.rt.name + ' — ' + sel.plan.name + ' · ' + s.check_in + ' → ' + s.check_out"></div>
+      <template x-for="l in quote.lines"><div class="line"><span><span x-text="l.description"></span> <span class="muted small" x-text="l.detail"></span></span><span class="mono" x-text="money(l.amount)"></span></div></template>
+      <template x-for="t in quote.tax_lines"><div class="line"><span x-text="t.name + ' @ ' + t.rate + '%'"></span><span class="mono" x-text="money(t.amount)"></span></div></template>
+      <div class="line total"><span>Total</span><span class="mono" x-text="money(quote.total)"></span></div></div></template></div>
+    <div><div class="card"><h2>Payment</h2><div class="field"><label class="f">Amount received now</label><input class="input" type="number" min="0" step="0.01" x-model="pay.amount"></div>
+      <div class="field"><label class="f">Method</label><select class="input" x-model="pay.method">{% for k, v in methods %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div><div class="field"><label class="f">Reference</label><input class="input" x-model="pay.reference"></div>
+      <p class="small muted">Leave amount at 0 to confirm now and collect payment later (e.g. phone/corporate bookings).</p>
+      <div class="field" x-show="sel.rt && sel.rt.rooms && sel.rt.rooms.length"><label class="f">Assign physical room(s) now (optional)</label><template x-for="i in s.rooms"><select class="input" style="margin-bottom:6px" x-model="roomIds[i-1]"><option value="">Assign later</option><template x-for="r in sel.rt.rooms"><option :value="r.id" x-text="r.number + ' · ' + r.status + (r.ready ? '' : ' (not ready)')"></option></template></select></template></div></div>
+      <div class="btn-row"><button class="btn" @click="step=3">← Back</button><button class="btn primary" @click="submit()" :disabled="loading"><span x-text="loading ? 'Saving…' : 'Confirm booking'"></span></button></div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function wiz() {
+  var q = new URLSearchParams(location.search);
+  return {
+    step: 1, loading: false, error: '', results: [], nights: 0, source: 'WALK_IN', sel: {}, quote: null, roomIds: [], coupon: '',
+    s: { check_in: q.get('check_in') || '{{ defaults.check_in }}', check_out: '{{ defaults.check_out }}', adults: 2, children: 0, rooms: 1 },
+    guest: { first_name: '', last_name: '', phone: '', email: '', address: '', city: '', state: '', country: 'India', postal_code: '', id_type: '', id_number: '' },
+    purpose: 'Leisure', arrival_time: '', request_types: [], special_requests: '', internal_notes: '', services: [], pay: { amount: 0, method: 'CASH', reference: '' },
+    init: function () { var ci = new Date(this.s.check_in + 'T00:00:00'); if (q.get('check_in')) { ci.setDate(ci.getDate() + 1); this.s.check_out = ci.toISOString().slice(0, 10); } },
+    money: window.money,
+    qs: function () { return 'check_in=' + this.s.check_in + '&check_out=' + this.s.check_out + '&adults=' + this.s.adults + '&children=' + this.s.children + '&rooms=' + this.s.rooms; },
+    search: async function () { this.error = ''; this.loading = true; var r = await api('/api/staff/availability/?' + this.qs()); this.loading = false; if (!r.ok) { this.error = r.error.message; return; } this.results = r.data.results; this.nights = r.data.nights; this.step = 2; },
+    pick: function (rt, p) { this.sel = { rt: rt, plan: p }; this.roomIds = []; this.step = 3; },
+    body: function () { return { room_type: this.sel.rt.id, rate_plan: this.sel.plan.id, check_in: this.s.check_in, check_out: this.s.check_out, adults: this.s.adults, children: this.s.children, rooms: this.s.rooms, coupon: this.coupon, services: this.services }; },
+    toPrice: async function () { this.error = ''; if (!this.guest.first_name.trim()) { this.error = 'Guest first name is required.'; return; } var r = await api('/api/staff/quote/', { body: this.body() }); if (!r.ok) { this.error = r.error.message; return; } this.quote = r.data.quote; this.pay.amount = 0; this.step = 4; },
+    submit: async function () { this.error = ''; this.loading = true; var b = this.body(); b.guest = this.guest; b.source = this.source; b.purpose = this.purpose; b.arrival_time = this.arrival_time; b.request_types = this.request_types; b.special_requests = this.special_requests; b.internal_notes = this.internal_notes; b.payment = this.pay; b.room_ids = this.roomIds.filter(Boolean);
+      var r = await api('/api/staff/reservations/', { body: b }); this.loading = false; if (!r.ok) { this.error = r.error.message; window.scrollTo(0, 0); return; } toast('Booking ' + r.data.booking_number + ' confirmed.', 'success'); location.href = r.data.url; }
+  };
+}
+</script>
+{% endblock %}

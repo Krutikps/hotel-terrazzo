@@ -1,0 +1,74 @@
+{% extends "guest/base.html" %}{% block title %}Checkout · {{ hotel.name }}{% endblock %}
+{% block content %}
+<div class="page-title"><div class="wrap"><span class="eyebrow">Secure booking</span><h1 style="font-size:clamp(2rem,5vw,3rem)">Complete your booking</h1></div></div>
+<section class="section" style="padding-top:28px"><div class="wrap" x-data="checkout()" x-init="init()" x-cloak>
+  <div class="steps"><span :class="cls(1)">1 · Stay & room</span><span :class="cls(2)">2 · Your details</span><span :class="cls(3)">3 · Stay information</span><span :class="cls(4)">4 · Price summary</span><span :class="cls(5)">5 · Payment</span></div>
+  <div class="alert bad" x-show="error" x-text="error"></div>
+  <div class="alert bad" x-show="gone"><b>This room is no longer available.</b> <a href="{% url 'guest:availability' %}?{{ request.GET.urlencode }}">Please select another room.</a></div>
+  <div class="co" x-show="!gone">
+    <div>
+      <div class="card" x-show="step==1"><div class="body"><h3>Your stay</h3>
+        <div class="fgrid"><div class="field"><label>Check-in</label><input class="input" type="date" x-model="s.check_in" @change="requote()"></div><div class="field"><label>Check-out</label><input class="input" type="date" x-model="s.check_out" @change="requote()"></div>
+          <div class="field"><label>Adults</label><input class="input" type="number" min="1" :max="rt.max_adults * s.rooms" x-model.number="s.adults" @change="requote()"></div><div class="field"><label>Children</label><input class="input" type="number" min="0" :max="rt.max_children * s.rooms" x-model.number="s.children" @change="requote()"></div>
+          <div class="field"><label>Rooms</label><input class="input" type="number" min="1" max="5" x-model.number="s.rooms" @change="requote()"></div></div>
+        <div style="border-top:1px solid var(--line);padding-top:14px"><b x-text="rt.name"></b> — <span x-text="plan.name"></span><div class="small muted" x-text="plan.cancellation"></div>
+          <a class="small" :href="'{% url 'guest:availability' %}?' + qs()">Change room or rate</a></div>
+        {% if services %}<h3 style="margin-top:20px">Add extras</h3><div class="chips">{% for sv in services %}<label class="chip" :class="{on: services.includes('{{ sv.id }}')}"><input type="checkbox" value="{{ sv.id }}" x-model="services" @change="requote()">{{ sv.name }} · {{ hotel.currency_symbol }}{{ sv.price|floatformat:0 }}</label>{% endfor %}</div>{% endif %}
+        <div class="field" style="margin-top:20px"><label>Coupon code</label><div style="display:flex;gap:8px"><input class="input" x-model="coupon" placeholder="e.g. WELCOME10" style="text-transform:uppercase"><button class="btn sm" @click="requote(true)" type="button">Apply</button></div><div class="small" :class="couponOk ? '' : 'err'" x-text="couponMsg"></div></div>
+        <button class="btn primary" @click="next(2)" :disabled="!q">Continue</button></div></div>
+
+      <div class="card" x-show="step==2"><div class="body"><h3>Guest information</h3><div class="fgrid">
+        <div class="field"><label>First name *</label><input class="input" x-model="g.first_name" autocomplete="given-name"><div class="err" x-text="fe.first_name"></div></div><div class="field"><label>Last name *</label><input class="input" x-model="g.last_name" autocomplete="family-name"><div class="err" x-text="fe.last_name"></div></div>
+        <div class="field"><label>Email *</label><input class="input" type="email" x-model="g.email" autocomplete="email"><div class="err" x-text="fe.email"></div></div><div class="field"><label>Phone *</label><input class="input" type="tel" x-model="g.phone" autocomplete="tel"><div class="err" x-text="fe.phone"></div></div>
+        <div class="field"><label>Address</label><input class="input" x-model="g.address" autocomplete="street-address"></div><div class="field"><label>City</label><input class="input" x-model="g.city" autocomplete="address-level2"></div><div class="field"><label>State</label><input class="input" x-model="g.state"></div><div class="field"><label>Country</label><input class="input" x-model="g.country" autocomplete="country-name"></div><div class="field"><label>Postal code</label><input class="input" x-model="g.postal_code" autocomplete="postal-code"></div>
+        <div class="field"><label>ID type {% if hotel.require_id_online %}*{% else %}(optional){% endif %}</label><select class="input" x-model="g.id_type"><option value="">—</option><option>Aadhaar</option><option>Passport</option><option>Driving licence</option><option>Voter ID</option><option>Other</option></select></div><div class="field"><label>ID number</label><input class="input" x-model="g.id_number"></div></div>
+        <div class="btn-row" style="display:flex;gap:10px"><button class="btn" @click="step=1">Back</button><button class="btn primary" @click="validateGuest() && next(3)">Continue</button></div></div></div>
+
+      <div class="card" x-show="step==3"><div class="body"><h3>Stay information</h3>
+        <div class="field"><label>Purpose of stay</label><div class="chips">{% for p in purposes %}<label class="chip" :class="{on: purpose=='{{ p }}'}"><input type="radio" value="{{ p }}" x-model="purpose">{{ p }}</label>{% endfor %}</div><input class="input" style="margin-top:8px" x-show="purpose=='Other'" x-model="purposeOther" placeholder="Tell us more"></div>
+        <div class="field"><label>Expected arrival time</label><input class="input" x-model="arrival" placeholder="e.g. 3:30 PM"></div>
+        <div class="field"><label>Special requests</label><div class="chips">{% for r in request_types %}<label class="chip" :class="{on: requests.includes('{{ r }}')}"><input type="checkbox" value="{{ r }}" x-model="requests">{{ r }}</label>{% endfor %}</div></div>
+        <div class="field"><label>Anything else we should know?</label><textarea class="input" rows="3" x-model="notes" maxlength="1500"></textarea><div class="small muted">Requests are subject to availability and may be chargeable.</div></div>
+        <div style="display:flex;gap:10px"><button class="btn" @click="step=2">Back</button><button class="btn primary" @click="next(4)">Review price</button></div></div></div>
+
+      <div class="card" x-show="step==4"><div class="body"><h3>Review & price</h3>
+        <p><b x-text="rt.name"></b> — <span x-text="plan.name"></span><br><span x-text="fmtDate(s.check_in) + ' → ' + fmtDate(s.check_out) + ' · ' + (q ? q.nights : '') + ' night(s) · ' + s.adults + ' adult(s), ' + s.children + ' child(ren) · ' + s.rooms + ' room(s)'"></span></p>
+        <p class="small">Guest: <b x-text="g.first_name + ' ' + g.last_name"></b> · <span x-text="g.email"></span> · <span x-text="g.phone"></span><br>Purpose: <span x-text="purpose == 'Other' && purposeOther ? purposeOther : purpose"></span> <span x-show="requests.length">· Requests: <span x-text="requests.join(', ')"></span></span></p>
+        <div class="alert" style="font-size:.9rem">Your room is held for <b>{{ hotel.hold_minutes }} minutes</b> once you continue to payment. Booking is confirmed only after your payment is verified.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" @click="step=3">Back</button><button class="btn primary" @click="pay()" :disabled="busy"><span x-show="busy" class="spin"></span> <span x-text="busy ? 'Holding your room…' : 'Continue to payment'"></span></button></div></div></div>
+    </div>
+    <aside class="card sticky"><div class="body"><h3>Price summary</h3>
+      <template x-if="!q"><div class="skeleton" style="height:120px"></div></template>
+      <template x-if="q"><div><template x-for="l in q.lines"><div class="line"><span><span x-text="l.description"></span><div class="small muted" x-text="l.detail"></div></span><span x-text="money2(l.amount)"></span></div></template>
+        <template x-for="t in q.tax_lines"><div class="line"><span x-text="t.name + ' (' + t.rate + '%)'"></span><span x-text="money2(t.amount)"></span></div></template>
+        <div class="line total"><span>Total</span><span x-text="money2(q.total)"></span></div>
+        <p class="small muted" x-show="payNow < 100" x-text="'Pay ' + payNow + '% now, the rest at the hotel.'"></p>
+        <p class="small muted" x-text="q.cancellation_policy"></p></div></template></div></aside></div>
+</div></section>
+{% endblock %}
+{% block scripts %}<script>
+function checkout() {
+  var P = new URLSearchParams(location.search), dflt = function (k, d) { return P.get(k) || d; };
+  return {
+    step: 1, busy: false, error: '', gone: false, q: null, fe: {}, couponMsg: '', couponOk: true, money2: window.money2, payNow: {{ hotel.online_payment_percent }},
+    rt: {{ rt_json|safe }}, plan: {{ plan_json|safe }},
+    s: { room_type: {{ rt.id }}, rate_plan: {{ plan.id }}, check_in: dflt('check_in', '{{ search.check_in }}'), check_out: dflt('check_out', '{{ search.check_out }}'), adults: parseInt(dflt('adults', '2')), children: parseInt(dflt('children', '0')), rooms: parseInt(dflt('rooms', '1')) },
+    coupon: dflt('coupon', ''), services: [], purpose: 'Leisure', purposeOther: '', arrival: '', requests: [], notes: '',
+    g: { first_name: '', last_name: '', email: '', phone: '', address: '', city: '', state: '', country: 'India', postal_code: '', id_type: '', id_number: '' },
+    cls: function (n) { return this.step === n ? 'on' : (this.step > n ? 'done' : ''); },
+    fmtDate: function (d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); },
+    qs: function () { return 'check_in=' + this.s.check_in + '&check_out=' + this.s.check_out + '&adults=' + this.s.adults + '&children=' + this.s.children + '&rooms=' + this.s.rooms; },
+    init: function () { try { var saved = JSON.parse(sessionStorage.getItem('hms-guest') || 'null'); if (saved) Object.assign(this.g, saved); } catch (e) {} this.requote(); },
+    body: function () { return Object.assign({}, this.s, { coupon: this.coupon, services: this.services }); },
+    requote: async function (fromCoupon) { this.error = ''; var r = await api('/api/quote/', this.body());
+      if (!r.ok) { if (r.error.code === 'coupon_invalid') { this.couponMsg = r.error.message; this.couponOk = false; this.coupon = ''; return this.requote(); } if (r.error.code === 'unavailable') { this.gone = true; return; } this.error = r.error.message; this.q = null; return; }
+      this.q = r.data.quote; if (fromCoupon || this.coupon) { this.couponOk = !!this.q.coupon; this.couponMsg = this.q.coupon ? 'Coupon ' + this.q.coupon + ' applied: −' + money2(this.q.discount) : ''; } },
+    next: function (n) { this.error = ''; this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
+    validateGuest: function () { var e = {}, g = this.g; if (!g.first_name.trim()) e.first_name = 'Please enter your first name.'; if (!g.last_name.trim()) e.last_name = 'Please enter your last name.'; if (!/^\S+@\S+\.\S+$/.test(g.email)) e.email = 'Please enter a valid email address.'; if (g.phone.replace(/\D/g, '').length < 7) e.phone = 'Please enter a valid phone number.'; this.fe = e; return Object.keys(e).length === 0; },
+    pay: async function () { this.busy = true; this.error = ''; try { sessionStorage.setItem('hms-guest', JSON.stringify(this.g)); } catch (e) {}
+      var b = this.body(); b.guest = this.g; b.purpose = this.purpose === 'Other' && this.purposeOther ? this.purposeOther : this.purpose; b.arrival_time = this.arrival; b.request_types = this.requests; b.special_requests = this.notes;
+      var r = await api('/api/reservations/hold/', b); this.busy = false;
+      if (!r.ok) { if (r.error.code === 'unavailable') { this.gone = true; } else { this.error = r.error.message; } return; } location.href = r.data.payment_url; }
+  };
+}
+</script>{% endblock %}
