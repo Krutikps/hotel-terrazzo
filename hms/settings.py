@@ -84,9 +84,17 @@ TEMPLATES = [
 # (booking creation takes a row lock with SELECT ... FOR UPDATE).
 def _database_from_url(url):
     """Parse postgres://user:pass@host:port/dbname?sslmode=require (Neon, Render, Supabase, Heroku style)."""
+    import re
     from urllib.parse import parse_qsl, unquote, urlparse
 
-    u = urlparse(url)
+    # Neon's "Connect" box shows a whole `psql 'postgresql://...'` command; accept that by extracting the URL part.
+    m = re.search(r"postgres(?:ql)?://[^\s'\"]+", url)
+    u = urlparse(m.group(0) if m else url.strip())
+    if u.scheme not in ("postgres", "postgresql") or not u.hostname or not u.path.strip("/"):
+        raise RuntimeError(
+            "DATABASE_URL is not a valid Postgres connection string. Expected "
+            "postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require (copy it from Neon -> Connect). "
+            "Do not paste a 'psql -h ...' command without the full postgresql:// URL.")
     options = {k: v for k, v in parse_qsl(u.query) if k in ("sslmode", "connect_timeout", "application_name")}
     return {
         "ENGINE": "django.db.backends.postgresql",
