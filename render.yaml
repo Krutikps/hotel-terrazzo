@@ -2,7 +2,7 @@
 # Dashboard -> New -> Blueprint -> pick this repo. Render asks for the values marked "sync: false".
 services:
   - type: web
-    name: terrazzo
+    name: hotel-terrazzo   # becomes https://hotel-terrazzo.onrender.com (if taken, pick another name here)
     runtime: python
     plan: free
     buildCommand: ./build.sh

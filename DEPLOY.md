@@ -1,6 +1,6 @@
 # Deploying for free: Render + Neon
 
-Result: `https://<your-name>.onrender.com` (guest site at `/`, staff portal at `/staff/`), backed by a free Postgres database.
+Result: `https://hotel-terrazzo.onrender.com` (the service name in `render.yaml`; Render adds a suffix if it is taken; a custom domain is optional) (guest site at `/`, staff portal at `/staff/`), backed by a free Postgres database.
 No credit card is needed for Render's free web service or Neon's free plan at the time of writing, but free-tier terms change, so check both pricing pages first.
 
 | Piece | Service | Free-tier behaviour |
