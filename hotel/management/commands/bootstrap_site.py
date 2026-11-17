@@ -27,6 +27,13 @@ class Command(BaseCommand):
         email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
         password = os.environ.get("ADMIN_PASSWORD", "")
 
+        # Recover from a seed that crashed half-way (the hotel row is committed first; the logo is applied last).
+        # Only when explicitly asked, and only while the seed is still incomplete, so it can never wipe a finished site.
+        hotel = Hotel.objects.first()
+        if _flag("SEED_DEMO") and _flag("SEED_DEMO_RESET") and hotel and not hotel.logo_url and password:
+            self.stdout.write("Incomplete demo seed found - re-seeding from scratch.")
+            call_command("seed_demo", reset=True, password=password, stdout=self.stdout)
+
         if not Hotel.objects.exists():
             if _flag("SEED_DEMO"):
                 if not password:

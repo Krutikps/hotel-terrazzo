@@ -30,6 +30,7 @@ class HoldExpired(BookingError):
 
 
 # --------------------------------------------------------------------------- helpers
+@transaction.atomic  # SELECT ... FOR UPDATE needs an open transaction on PostgreSQL (SQLite ignores it, which hid this in dev)
 def next_number(kind, prefix):
     year = timezone.localdate().year
     counter, _ = Counter.objects.select_for_update().get_or_create(kind=kind, year=year)
@@ -519,6 +520,7 @@ def check_out(reservation_id, user, *, charges=(), collect_amount=ZERO, method="
     return res, inv
 
 
+@transaction.atomic
 def create_invoice(res, user=None):
     last = res.invoices.first()
     if last and last.total == res.total and last.paid == res.amount_paid:

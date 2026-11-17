@@ -123,6 +123,7 @@ class ReservationTests(Base):
         self.assertEqual(self.avail(), 5)
         late = self.book(start=0, nights=1)   # arrival today: always inside the 24h free-cancellation window
         payments.record_offline(late, late.total, "CASH", user=self.staff)
+        late.refresh_from_db()                # amount_paid is recomputed on a fresh row
         fee, refund = rs.cancellation_quote(late)
         self.assertEqual(fee, late.total)     # plan penalty is 100%
         self.assertEqual(refund, Decimal("0.00"))
